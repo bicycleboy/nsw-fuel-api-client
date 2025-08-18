@@ -28,6 +28,8 @@ class FuelCheckClientTest(unittest.TestCase):
             self.assertEqual(len(response.prices), 5)
             self.assertEqual(response.stations[0].name, 'Cool Fuel Brand Hurstville')
             self.assertEqual(response.stations[1].name, 'Fake Fuel Brand Kogarah')
+            self.assertAlmostEqual(response.stations[1].latitude, -31)
+            self.assertAlmostEqual(response.stations[1].longitude, 152)
             self.assertEqual(response.prices[0].fuel_type, 'DL')
             self.assertEqual(response.prices[1].fuel_type, 'E10')
             self.assertEqual(response.prices[1].station_code, 1)
@@ -89,7 +91,7 @@ class FuelCheckClientTest(unittest.TestCase):
                     'code': 678,
                     'name': 'Cool Fuel Brand Luxembourg',
                     'address': '123 Fake Street',
-                    'location': {},
+                    'location': {'latitude': -33.987, 'longitude': 151.334},
                 },
                 {
                     'stationid': 'SAAAAAB',
@@ -98,7 +100,7 @@ class FuelCheckClientTest(unittest.TestCase):
                     'code': 679,
                     'name': 'Fake Fuel Brand Luxembourg',
                     'address': '123 Fake Street',
-                    'location': {},
+                    'location': {'latitude': -33.587, 'longitude': 151.434},
                 },
                 {
                     'stationid': 'SAAAAAB',
@@ -107,7 +109,7 @@ class FuelCheckClientTest(unittest.TestCase):
                     'code': 880,
                     'name': 'Fake Fuel Brand2 Luxembourg',
                     'address': '123 Fake Street',
-                    'location': {},
+                    'location': {'latitude': -33.687, 'longitude': 151.234},
                 },
             ],
             'prices': [
@@ -147,6 +149,8 @@ class FuelCheckClientTest(unittest.TestCase):
         )
         self.assertEqual(len(result), 3)
         self.assertEqual(result[0].station.code, 678)
+        self.assertAlmostEqual(result[0].station.latitude, -33.987)
+        self.assertAlmostEqual(result[0].station.longitude, 151.334)
         self.assertEqual(result[0].price.price, 150.9)
 
     @Mocker()

@@ -50,12 +50,14 @@ class Price(object):
 
 class Station(object):
     def __init__(self, id: Optional[str], brand: str, code: int,
-                 name: str, address: str) -> None:
+            name: str, address: str, latitude: float, longitude: float) -> None:
         self.id = id
         self.brand = brand
         self.code = code
         self.name = name
         self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
 
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> 'Station':
@@ -64,12 +66,14 @@ class Station(object):
             brand=data['brand'],
             code=int(data['code']),
             name=data['name'],
-            address=data['address']
+            address=data['address'],
+            latitude=data['location']['latitude'],
+            longitude=data['location']['longitude'],
         )
 
     def __repr__(self) -> str:
-        return '<Station id={} code={} brand={} name={}>'.format(
-            self.id, self.code, self.brand, self.name)
+        return '<Station id={} code={} brand={} name={} latitude={} longitude={}>'.format(
+            self.id, self.code, self.brand, self.name, self.latitude, self.longitude)
 
 
 class Period(Enum):
