@@ -61,3 +61,4 @@ VERSION
 .mypy_cache
 .eggs
 
+secrets
