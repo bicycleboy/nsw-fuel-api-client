@@ -12,7 +12,7 @@ from .dto import (
     Price, Station, Variance, AveragePrice, FuelCheckError,
     GetReferenceDataResponse, GetFuelPricesResponse)
 
-from .const import AUTH_URL, BASE_URL, PRICE_ENDPOINT, PRICES_ENDPOINT, REFERENCE_ENDPOINT, NEARBY_ENDPOINT, TRENDS_ENDPOINT, LOGGER
+from .const import AUTH_URL, BASE_URL, PRICE_ENDPOINT, PRICES_ENDPOINT, REFERENCE_ENDPOINT, NEARBY_ENDPOINT, LOGGER
 
 from aiohttp import (
     ClientConnectionError,
@@ -236,25 +236,25 @@ class FuelCheckClient():
             raise NSWFuelApiClientError(f"Unexpected error: {err}") from err
 
 
-        async def get_fuel_prices(self) -> GetFuelPricesResponse:
-            """Fetch fuel prices for all stations asynchronously.
+    async def get_fuel_prices(self) -> GetFuelPricesResponse:
+        """Fetch fuel prices for all stations asynchronously.
 
-            Raises:
-                FuelCheckError: If the API request fails or the response is invalid.
-            """
-            # Perform the async GET request
-            response: dict[str, Any] = await self._async_request(
-                path=PRICES_ENDPOINT,
-                params=None,
-            )
+        Raises:
+            FuelCheckError: If the API request fails or the response is invalid.
+        """
+        # Perform the async GET request
+        response: dict[str, Any] = await self._async_request(
+            path=PRICES_ENDPOINT,
+            params=None,
+        )
 
-            # Validate that response contains data
-            if not response:
-                raise FuelCheckError("No fuel prices returned from the API")
+        # Validate that response contains data
+        if not response:
+            raise FuelCheckError("No fuel prices returned from the API")
 
-            # Deserialize the response into a structured object
-            return GetFuelPricesResponse.deserialize(response)
-        
+        # Deserialize the response into a structured object
+        return GetFuelPricesResponse.deserialize(response)
+    
     async def get_fuel_prices_for_station(
         self,
         station_code: str,

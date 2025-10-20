@@ -1,4 +1,1 @@
-from .integration import FuelCheckClientIntegrationTest
-from .unit import FuelCheckClientTest
-
-__all__ = ['FuelCheckClientTest', 'FuelCheckClientIntegrationTest']
+# This package contains pytest test modules for nsw_fuel_api_client.

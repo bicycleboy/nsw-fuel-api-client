@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Any, Dict
 
-from requests import Response
+from requests import Response  # remove when fixing error handling
 
 
 class Price(object):

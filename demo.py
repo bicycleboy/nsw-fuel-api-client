@@ -54,7 +54,7 @@ async def main() -> None:
             _LOGGER.error("Failed to fetch station prices: %s", exc)
             return
         
-        # Write the token to a file so we can use it in the nsw api site to understand the api
+        # Write the token to a file so we can use it in the nsw api site to understand the API
         if client._token:  # make sure token exists
             with open("token", "w") as f:
                 f.write(client._token)
