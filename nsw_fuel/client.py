@@ -54,6 +54,10 @@ class FuelCheckClient():
         self._token: str | None = None
         self._token_expiry: float = 0
 
+    def _format_dt(self, dt: datetime.datetime) -> str:
+        return dt.strftime('%d/%m/%Y %I:%M:%S %p')
+
+
     async def async_get_token(self) -> str | None:
         """Get or refresh OAuth2 token from the NSW Fuel API."""
         LOGGER.debug("async_get_token called")
@@ -167,7 +171,7 @@ class FuelCheckClient():
             )
             for key, value in headers.items()
         }
-        LOGGER.debug("Requesting %s with headers=%s", url, redacted_headers)
+        LOGGER.info("Requesting %s with params=%s, headers=%s", url, params, redacted_headers)
 
         try:
             # Use aiohttp session for GET or POST
@@ -231,9 +235,6 @@ class FuelCheckClient():
         except Exception as err:
             raise NSWFuelApiClientError(f"Unexpected error: {err}") from err
 
-
-        def _format_dt(self, dt: datetime.datetime) -> str:
-            return dt.strftime('%d/%m/%Y %H:%M:%S')
 
         async def get_fuel_prices(self) -> GetFuelPricesResponse:
             """Fetch fuel prices for all stations asynchronously.
@@ -353,46 +354,11 @@ class FuelCheckClient():
 
         return station_prices
 
-
-    async def async_get_fuel_price_trends(
-        self, latitude: float, longitude: float, fuel_types: List[str]
-    ) -> PriceTrends:
-        """Fetch fuel price trends for the given location and fuel types."""
-
-        payload = {
-            "location": {"latitude": latitude, "longitude": longitude},
-            "fueltypes": [{"code": ftype} for ftype in fuel_types],
-        }
-
-        # The endpoint for price trends
-        path = TRENDS_ENDPOINT
-
-        try:
-            # Perform authorized POST request
-            response = await self._async_request(
-                path=path,
-                method="POST",  # Extend _async_request to support POST if not already
-                json=payload,
-            )
-        except NSWFuelApiClientAuthError:
-            LOGGER.warning("Authentication failed while fetching price trends")
-            raise
-        except NSWFuelApiClientError as err:
-            LOGGER.error("Error fetching fuel price trends: %s", err)
-            raise
-
-        # Parse response
-        try:
-            variances = [Variance.deserialize(v) for v in response.get("Variances", [])]
-            average_prices = [AveragePrice.deserialize(a) for a in response.get("AveragePrices", [])]
-            return PriceTrends(variances=variances, average_prices=average_prices)
-        except Exception as err:  # noqa: BLE001
-            LOGGER.exception("Failed to parse price trends response")
-            raise NSWFuelApiClientError(f"Failed to parse price trends response: {err}") from err
-    
+  
     async def get_reference_data(
         self,
-        modified_since: Optional[datetime] = None
+        modified_since: Optional[datetime] = None,
+        states: Optional[list[str]] = None
     ) -> GetReferenceDataResponse:
         """
         Fetch API reference data.
@@ -405,12 +371,17 @@ class FuelCheckClient():
 
         headers = {}
         if modified_since:
-            headers["If-Modified-Since"] = self._format_dt(modified_since)
+            headers["if-modified-since"] = self._format_dt(modified_since)
+        # Add states as extra header if provided
+        params = {}
+        if states:
+            # Join list into comma-separated string if needed by API
+            params["states"] = states
 
         # Make the authorized GET request
         response_data = await self._async_request(
             REFERENCE_ENDPOINT,
-            params=None,
+            params=params,
             extra_headers=headers
         )
 
