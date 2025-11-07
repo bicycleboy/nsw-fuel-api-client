@@ -11,3 +11,6 @@ PRICE_ENDPOINT = "/FuelPriceCheck/v2/fuel/prices/station/{station_code}"
 PRICES_ENDPOINT = "/FuelPriceCheck/v2/fuel/prices"
 NEARBY_ENDPOINT = "/FuelPriceCheck/v2/fuel/prices/nearby"
 REF_DATA_REFRESH_DAYS = 30
+DEFAULT_TIMEOUT = 30  # seconds
+HTTP_UNAUTHORIZED = 401
+HTTP_INTERNAL_SERVER_ERROR = 500

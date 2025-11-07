@@ -3,7 +3,7 @@
 from dotenv import load_dotenv
 import os
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime 
 
 from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientAuthError
 

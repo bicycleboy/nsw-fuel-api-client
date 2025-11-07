@@ -3,11 +3,12 @@ from datetime import datetime
 import json
 import os
 import pytest
+from aiohttp import ClientResponse
 
-from aiohttp.client_exceptions import ClientResponseError
 
-from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientError, NSWFuelApiClientConnectionError, NSWFuelApiClientAuthError
-from nsw_fuel.const import BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT, NEARBY_ENDPOINT, REFERENCE_ENDPOINT
+
+from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientError, NSWFuelApiClientConnectionError
+from nsw_fuel.const import AUTH_URL, BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT, NEARBY_ENDPOINT, REFERENCE_ENDPOINT
 
 # Paths to fixture files
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -271,6 +272,3 @@ async def test_server_error_raises_connection_error(session, mock_token):
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientConnectionError):
         await client.get_fuel_prices()
-
-
-
