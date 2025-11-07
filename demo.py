@@ -2,7 +2,6 @@
 """Demo script for nsw-fuel-api-client that loads credentials from a file."""
 
 from datetime import datetime, timedelta, timezone
-import json
 import logging
 from pathlib import Path
 from typing import Tuple

@@ -6,10 +6,10 @@ import json
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, NamedTuple, Dict, Any
+from typing import List, Optional, NamedTuple, Any
 
 from .dto import (
-    Price, Station, Variance, AveragePrice, FuelCheckError,
+    Price, Station, Variance, AveragePrice,
     GetReferenceDataResponse, GetFuelPricesResponse)
 
 from .const import AUTH_URL, BASE_URL, PRICE_ENDPOINT, PRICES_ENDPOINT, REFERENCE_ENDPOINT, NEARBY_ENDPOINT, LOGGER
@@ -23,6 +23,7 @@ from aiohttp import (
 )
 UTC = timezone.utc
 HTTP_UNAUTHORIZED = 401
+HTTP_INTERNAL_SERVER_ERROR = 500
 
 PriceTrends = NamedTuple('PriceTrends', [
     ('variances', List[Variance]),
@@ -33,14 +34,15 @@ StationPrice = NamedTuple('StationPrice', [
     ('price', Price),
     ('station', Station)
 ])
-# Need to rationalise exceptions and FuelCheckError
-class NSWFuelApiClientError(Exception):
-    """General API error."""
 
+class NSWFuelApiClientError(Exception):
+    """Base class for all NSW Fuel API errors."""
 
 class NSWFuelApiClientAuthError(NSWFuelApiClientError):
-    """Authentication failure."""
+    """Authentication failure (invalid or expired credentials)."""
 
+class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
+    """Connection or server availability issue."""
 
 class FuelCheckClient():
     """API client for NSW FuelCheck."""
@@ -58,9 +60,9 @@ class FuelCheckClient():
         return dt.strftime('%d/%m/%Y %I:%M:%S %p')
 
 
-    async def async_get_token(self) -> str | None:
+    async def _async_get_token(self) -> str | None:
         """Get or refresh OAuth2 token from the NSW Fuel API."""
-        LOGGER.debug("async_get_token called")
+        LOGGER.debug("_async_get_token called")
         now = time.time()
 
         # Refresh if no token or it will expire soon
@@ -81,27 +83,27 @@ class FuelCheckClient():
             try:
                 async with self._session.get(
                     AUTH_URL, params=params, headers=headers
-                ) as resp:
-                    text = await resp.text()
+                ) as response:
+                    text = await response.text()
                     LOGGER.debug(
                         "Token response status=%s, content_type=%s, params=%s",
-                        resp.status,
-                        resp.content_type,
+                        response.status,
+                        response.content_type,
                         {"grant_type": params["grant_type"]},  # redact secret
                     )
-                resp.raise_for_status()
+                response.raise_for_status()
 
                 # Some NSW APIs mislabel JSON as x-www-form-urlencoded
-                if "application/json" in resp.content_type:
+                if "application/json" in response.content_type:
                     try:
-                        result = await resp.json()
+                        result = await response.json()
                     except ClientConnectionError as err:
                         LOGGER.exception("Connection dropped while parsing token")
                         msg = "Connection lost during token fetch"
                         raise NSWFuelApiClientError(msg) from err
                 else:
                     LOGGER.warning(
-                        "Expected application/json, got %s", resp.content_type
+                        "Expected application/json, got %s", response.content_type
                     )
                     try:
                         result = json.loads(text)
@@ -142,11 +144,11 @@ class FuelCheckClient():
         path: str,
         method: str = "GET",
         params: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        json_body: Optional[dict[str, Any]] = None,
         extra_headers: Optional[dict[str, str]] = None,
     ) -> Any:
         """Perform an authorized HTTP request (GET or POST) to the NSW Fuel API."""
-        token = await self.async_get_token()
+        token = await self._async_get_token()
         if not token:
             raise NSWFuelApiClientError("No access token available for NSW Fuel API request")
 
@@ -171,7 +173,7 @@ class FuelCheckClient():
             )
             for key, value in headers.items()
         }
-        LOGGER.info("Requesting %s with params=%s, headers=%s", url, params, redacted_headers)
+        LOGGER.debug("_async_request requesting %s with params=%s, headers=%s", url, params, redacted_headers)
 
         try:
             # Use aiohttp session for GET or POST
@@ -180,14 +182,15 @@ class FuelCheckClient():
                 url,
                 headers=headers,
                 params=params,
-                json=json,
+                json=json_body,
                 timeout=ClientTimeout(total=30),
-            ) as resp:
-                status = resp.status
+            ) as response:
+                status = response.status
+
                 try:
-                    data = await resp.json(content_type=None)
+                    data = await response.json(encoding="utf-8", content_type=None)
                 except Exception:  # noqa: BLE001
-                    data = await resp.text()
+                    data = await response.text()
 
                 # Avoid logging large reference data
                 if path != REFERENCE_ENDPOINT:
@@ -196,10 +199,10 @@ class FuelCheckClient():
                     LOGGER.debug("API Response %s", status)
 
                 # Handle 401: refresh token and retry once
-                if status == 401:
+                if status == HTTP_UNAUTHORIZED:
                     LOGGER.warning("401 Unauthorized, refreshing token...")
                     self._token = None
-                    token = await self.async_get_token()
+                    token = await self._async_get_token()
                     if not token:
                         raise NSWFuelApiClientAuthError("Failed to refresh token after 401")
 
@@ -209,7 +212,7 @@ class FuelCheckClient():
                         url,
                         headers=headers,
                         params=params,
-                        json=json,
+                        json=json_body,
                         timeout=ClientTimeout(total=30),
                     ) as retry:
                         retry_status = retry.status
@@ -220,58 +223,149 @@ class FuelCheckClient():
                         LOGGER.debug("Retry Response %s: %s", retry_status, retry_data)
                         retry.raise_for_status()
                         return retry_data
+            
+                # Handle errors by extracting error details from response JSON before raising
+                if status >= 400:
+                    error_details_msg = None
+                    if isinstance(data, dict) and "errorDetails" in data:
+                        ed = data["errorDetails"]
+                        if isinstance(ed, list) and len(ed) > 0:
+                            error_details_msg = ed[0].get("description") or ed[0].get("message")
+                        elif isinstance(ed, dict):
+                            error_details_msg = ed.get("description") or ed.get("message")
 
-                resp.raise_for_status()
+                    if status == HTTP_UNAUTHORIZED:
+                        raise NSWFuelApiClientAuthError(error_details_msg or "Authentication failed during request")
+                    elif status >= HTTP_INTERNAL_SERVER_ERROR:
+                        raise NSWFuelApiClientConnectionError(
+                            error_details_msg or f"Server error {status}: {response.reason}"
+                        )
+                    else:
+                        raise NSWFuelApiClientError(
+                            error_details_msg or f"HTTP error {status}: {response.reason}"
+                        )
+
+                # No error, return the data
                 return data
 
         except ClientResponseError as err:
-            if err.status == 401:
+            # Try to parse error details from JSON response body
+            error_details_msg = None
+            try:
+                # We can get the response content from err.response
+                if err.response is not None:
+                    error_json = await err.response.json(content_type=None)
+                    if "errorDetails" in error_json:
+                        ed = error_json["errorDetails"]
+                        if isinstance(ed, list) and len(ed) > 0:
+                            error_details_msg = ed[0].get("description") or ed[0].get("message")
+                        elif isinstance(ed, dict):
+                            error_details_msg = ed.get("description") or ed.get("message")
+            except Exception:
+                # If parsing JSON fails, just ignore and fallback
+                pass
+
+            if err.status == HTTP_UNAUTHORIZED:
                 raise NSWFuelApiClientAuthError("Authentication failed during request") from err
+            elif err.status >= HTTP_INTERNAL_SERVER_ERROR:
+              raise NSWFuelApiClientConnectionError(f"Server error {err.status}: {err.message}") from err
             raise NSWFuelApiClientError(f"HTTP error {err.status}: {err.message}") from err
 
         except ClientError as err:
             raise NSWFuelApiClientError(f"Connection error: {err}") from err
+        
+        except NSWFuelApiClientError:
+            # Pass through custom exceptions such as from inner try untouched
+            raise
 
         except Exception as err:
-            raise NSWFuelApiClientError(f"Unexpected error: {err}") from err
+            raise NSWFuelApiClientError(f"{err}") from err
 
 
     async def get_fuel_prices(self) -> GetFuelPricesResponse:
-        """Fetch fuel prices for all stations asynchronously.
+        """Fetch all NSW fuel prices.
 
         Raises:
-            FuelCheckError: If the API request fails or the response is invalid.
+            NSWFuelApiClientAuthError: If authentication fails.
+            NSWFuelApiClientConnectionError: If network or server issues occur.
+            NSWFuelApiClientError: For all other API or data validation errors.
         """
-        # Perform the async GET request
-        response: dict[str, Any] = await self._async_request(
-            path=PRICES_ENDPOINT,
-            params=None,
-        )
+        try:
+            response: dict[str, Any] = await self._async_request(
+                path=PRICES_ENDPOINT,
+                params=None,
+            )
 
-        # Validate that response contains data
-        if not response:
-            raise FuelCheckError("No fuel prices returned from the API")
+            if not response:
+                raise NSWFuelApiClientError("No data returned from NSW Fuel API")
 
-        # Deserialize the response into a structured object
-        return GetFuelPricesResponse.deserialize(response)
+            # Validate structure
+            if "prices" not in response or "stations" not in response:
+                raise NSWFuelApiClientError("Malformed response: missing required fields")
+
+            return GetFuelPricesResponse.deserialize(response)
+        
+        except NSWFuelApiClientAuthError:
+            # Pass through unchanged so HA can handle login issues distinctly
+            raise
+
+        except NSWFuelApiClientConnectionError:
+            # Connection or timeout problems
+            raise
+
+        except Exception as err:
+            # Catch deserialization errors, logic issues, etc.
+            LOGGER.debug(f"Caught generic Exception: {type(err)} - {err}")
+            # Only wrap truly unexpected issues
+            if isinstance(err, NSWFuelApiClientError):
+                raise
+            raise NSWFuelApiClientError(f"Unexpected failure fetching fuel prices: {err}") from err
+
     
     async def get_fuel_prices_for_station(
         self,
         station_code: str,
     ) -> List[Price]:
-        """Fetch the fuel prices for a specific fuel station asynchronously."""
-        # Perform the authorized GET request
-        response: dict[str, Any] = await self._async_request(
-          PRICE_ENDPOINT.format(station_code=station_code)
-        )
+        """Fetch the fuel prices for a specific fuel station asynchronously.
 
-        # Check that the response contains 'prices'
-        prices_data = response.get("prices")
-        if not prices_data:
-           raise FuelCheckError(f"No prices found for station {station_code}")
+        Raises:
+            NSWFuelApiClientAuthError: If authentication fails.
+            NSWFuelApiClientConnectionError: If network or server issues occur.
+            NSWFuelApiClientError: For all other API or data validation errors.
+        """
+        try:
+            response: dict[str, Any] = await self._async_request(
+                PRICE_ENDPOINT.format(station_code=station_code)
+            )
 
-        # Deserialize each price entry into a Price object
-        return [Price.deserialize(p) for p in prices_data]
+            # Validate response structure
+            if not response or "prices" not in response:
+                raise NSWFuelApiClientError(
+                    f"Malformed or empty response for station {station_code}"
+                )
+
+            prices_data = response.get("prices")
+            if not prices_data:
+                raise NSWFuelApiClientError(
+                    f"No price data found for station {station_code}"
+                )
+
+            # Deserialize prices
+            return [Price.deserialize(p) for p in prices_data]
+
+        except NSWFuelApiClientAuthError:
+            # Bubble up auth failures (so HA can handle reauth flow)
+            raise
+
+        except NSWFuelApiClientConnectionError:
+            # Let HA treat this as an unavailable entity
+            raise
+
+        except Exception as err:
+            # Catch unexpected parsing or logic issues
+            raise NSWFuelApiClientError(
+                f"Unexpected failure fetching station prices for {station_code}: {err}"
+            ) from err
     
     async def get_fuel_prices_within_radius(
         self,
@@ -283,7 +377,6 @@ class FuelCheckClient():
         named_location: str | None = None,
         sort_by: str = "price",
         sort_ascending: bool = True,
-
     ) -> List[StationPrice]:
         """Fetch all fuel prices within the specified radius asynchronously.
 
@@ -295,64 +388,90 @@ class FuelCheckClient():
             brands: Optional list of brand names to filter.
 
         Raises:
-            FuelCheckError: If the API request fails or data is invalid.
+            NSWFuelApiClientAuthError: If authentication fails.
+            NSWFuelApiClientConnectionError: If network or server issues occur.
+            NSWFuelApiClientError: For all other API or data validation errors.
         """
-        payload: dict[str, Any] = {
-            "fueltype": fuel_type,
-            "brand": brands or [],
-            "namedlocation": named_location or "",
-            "latitude": str(latitude),   # API expects strings
-            "longitude": str(longitude),
-            "radius": str(radius),       # API also expects a string here
-            "sortby": sort_by,
-            "sortascending": str(sort_ascending).lower(),  # "true"/"false"
-        }
+        try:
+            payload: dict[str, Any] = {
+                "fueltype": fuel_type,
+                "brand": brands or [],
+                "namedlocation": named_location or "",
+                "latitude": str(latitude),   # API expects strings
+                "longitude": str(longitude),
+                "radius": str(radius),
+                "sortby": sort_by,
+                "sortascending": str(sort_ascending).lower(),  # "true"/"false"
+            }
 
-        # Perform the async POST request
-        response: dict[str, Any] = await self._async_request(
-            path=NEARBY_ENDPOINT,
-            params=None,
-            method="POST",
-            json=payload,
-            extra_headers={"Content-Type": "application/json"},
-        )
-
-        # Log the raw API response
-        LOGGER.debug(
-            "Raw nearby fuel prices response for lat=%s lon=%s: %s",
-            latitude,
-            longitude,
-            response,
-        )
-
-        # Validate response
-        stations_data = response.get("stations")
-        prices_data = response.get("prices")
-        if not stations_data or not prices_data:
-            raise FuelCheckError(
-                f"No stations or prices found for location ({latitude}, {longitude})"
+            # Perform the async POST request
+            response: dict[str, Any] = await self._async_request(
+                path=NEARBY_ENDPOINT,
+                params=None,
+                method="POST",
+                json_body=payload,
+                extra_headers={"Content-Type": "application/json"},
             )
 
-        # Deserialize stations
-        stations: dict[str, Station] = {
-            station["code"]: Station.deserialize(station) for station in stations_data
-        }
+            LOGGER.debug(
+                "Raw nearby fuel prices response for lat=%s lon=%s: %s",
+                latitude,
+                longitude,
+                response,
+            )
 
-        # Deserialize prices and attach station
-        station_prices: List[StationPrice] = []
-        for serialized_price in prices_data:
-            price = Price.deserialize(serialized_price)
-            station_obj = stations.get(price.station_code)
-            if station_obj:
-                station_prices.append(StationPrice(price=price, station=station_obj))
+            # Validate structure
+            if not response or "stations" not in response or "prices" not in response:
+                raise NSWFuelApiClientError(
+                    f"Malformed or empty response for location ({latitude}, {longitude})"
+                )
 
-        # Log the final deserialized data
-        LOGGER.debug(
-            "Deserialized nearby station prices: %s",
-            station_prices,
-        )
+            stations_data = response.get("stations")
+            prices_data = response.get("prices")
+            if not stations_data or not prices_data:
+                raise NSWFuelApiClientError(
+                    f"No stations or prices found for location ({latitude}, {longitude})"
+                )
 
-        return station_prices
+            # Deserialize stations
+            stations: dict[str, Station] = {
+                station["code"]: Station.deserialize(station)
+                for station in stations_data
+            }
+
+            # Deserialize prices and attach stations
+            station_prices: List[StationPrice] = []
+            for serialized_price in prices_data:
+                try:
+                    price = Price.deserialize(serialized_price)
+                    station_obj = stations.get(price.station_code)
+                    if station_obj:
+                        station_prices.append(
+                            StationPrice(price=price, station=station_obj)
+                        )
+                except Exception as parse_err:
+                    LOGGER.warning("Skipping malformed price entry: %s", parse_err)
+
+            LOGGER.debug(
+                "Deserialized %d nearby station prices for lat=%s lon=%s",
+                len(station_prices),
+                latitude,
+                longitude,
+            )
+
+            return station_prices
+
+        except NSWFuelApiClientAuthError:
+            raise
+
+        except NSWFuelApiClientConnectionError:
+            raise
+
+        except Exception as err:
+            raise NSWFuelApiClientError(
+                f"Unexpected error fetching nearby prices for "
+                f"({latitude}, {longitude}): {err}"
+            ) from err
 
   
     async def get_reference_data(
@@ -364,29 +483,46 @@ class FuelCheckClient():
         Fetch API reference data.
 
         :param modified_since: Optional datetime to fetch only data modified since this timestamp.
-                            If None, all reference data will be returned.
-        :raises FuelCheckError: If the API request fails or returns invalid data.
+                               If None, all reference data will be returned.
+        :param states: Optional list of state abbreviations to filter results.
+        :raises NSWFuelApiClientAuthError: If authentication fails.
+        :raises NSWFuelApiClientConnectionError: If a network or transport error occurs.
+        :raises NSWFuelApiClientError: For all other unexpected API or parsing errors.
         :return: Deserialized GetReferenceDataResponse object.
         """
-
         headers = {}
         if modified_since:
             headers["if-modified-since"] = self._format_dt(modified_since)
-        # Add states as extra header if provided
+
         params = {}
         if states:
-            # Join list into comma-separated string if needed by API
             params["states"] = states
 
-        # Make the authorized GET request
-        response_data = await self._async_request(
-            REFERENCE_ENDPOINT,
-            params=params,
-            extra_headers=headers
-        )
+        try:
+            response = await self._async_request(
+                REFERENCE_ENDPOINT,
+                params=params,
+                extra_headers=headers,
+            )
 
-        if not response_data:  # handle empty or invalid response
-            raise FuelCheckError("Empty response from reference data endpoint")
+            if not response:
+                raise NSWFuelApiClientError(
+                    "Empty response from reference data endpoint"
+                )
 
-        # Deserialize JSON into your data model
-        return GetReferenceDataResponse.deserialize(response_data)
+            return GetReferenceDataResponse.deserialize(response)
+
+        except NSWFuelApiClientAuthError:
+            # Bubble up auth failures (so HA can handle reauth flow)
+            raise
+
+        except NSWFuelApiClientConnectionError:
+            # Let HA treat this as an unavailable entity
+            raise
+
+        except Exception as err:
+            # Catch unexpected parsing or logic issues
+            raise NSWFuelApiClientError(
+                f"Unexpected failure fetching reference data: {err}"
+            ) from err
+ 

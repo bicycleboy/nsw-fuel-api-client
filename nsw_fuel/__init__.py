@@ -1,11 +1,11 @@
 from .client import FuelCheckClient
 from .dto import (
-    AveragePrice, Variance, Station, Period, Price, FuelCheckError,
+    AveragePrice, Variance, Station, Period, Price,
     GetFuelPricesResponse, FuelType, GetReferenceDataResponse,
     SortField, TrendPeriod
 )
 
 __all__ = ["FuelCheckClient", "AveragePrice", "Variance", "Station", "Period",
-           "Price", "FuelCheckError", "GetFuelPricesResponse", "FuelType",
+           "Price", "GetFuelPricesResponse", "FuelType",
            "GetReferenceDataResponse", "SortField", "TrendPeriod"]
 __version__ = "0.0.0-dev"

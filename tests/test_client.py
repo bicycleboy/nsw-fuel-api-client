@@ -1,14 +1,13 @@
-import asyncio
-import datetime
+
+from datetime import datetime
 import json
 import os
-import re
 import pytest
-from aioresponses import aioresponses
 
-from nsw_fuel.client import FuelCheckClient
+from aiohttp.client_exceptions import ClientResponseError
+
+from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientError, NSWFuelApiClientConnectionError, NSWFuelApiClientAuthError
 from nsw_fuel.const import BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT, NEARBY_ENDPOINT, REFERENCE_ENDPOINT
-from nsw_fuel.dto import FuelCheckError
 
 # Paths to fixture files
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -63,7 +62,7 @@ async def test_get_fuel_prices_for_station(session, mock_token):
     assert len(result) == 2
     assert result[0].fuel_type == "E10"
     assert result[0].price == 146.9
-    assert result[0].last_updated == datetime.datetime(
+    assert result[0].last_updated == datetime(
         day=2, month=6, year=2018, hour=2, minute=3, second=4
     )
 
@@ -180,7 +179,7 @@ async def test_get_fuel_prices_server_error(session, mock_token):
     mock_token.get(url, status=500, body="Internal Server Error.")
 
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
-    with pytest.raises(FuelCheckError) as exc:
+    with pytest.raises(NSWFuelApiClientConnectionError) as exc:
         await client.get_fuel_prices()
 
     assert "Internal Server Error" in str(exc.value)
@@ -205,7 +204,7 @@ async def test_get_fuel_prices_for_station_client_error(session, mock_token):
     )
 
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
-    with pytest.raises(FuelCheckError) as exc:
+    with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_fuel_prices_for_station(station_code)
 
     assert f'Invalid service station code "{station_code}"' in str(exc.value)
@@ -218,7 +217,7 @@ async def test_get_fuel_prices_within_radius_server_error(session, mock_token):
     mock_token.post(url, status=500, body="Internal Server Error.")
 
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
-    with pytest.raises(FuelCheckError) as exc:
+    with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_fuel_prices_within_radius(
             latitude=-33.0, longitude=151.0, radius=10, fuel_type="E10"
         )
@@ -242,7 +241,7 @@ async def test_get_reference_data_client_error(session, mock_token):
     )
 
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
-    with pytest.raises(FuelCheckError) as exc:
+    with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_reference_data()
 
     assert "String was not recognized as a valid DateTime" in str(exc.value)
@@ -255,7 +254,23 @@ async def test_get_reference_data_server_error(session, mock_token):
     mock_token.get(url, status=500, body="Internal Server Error.")
 
     client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
-    with pytest.raises(FuelCheckError) as exc:
+    with pytest.raises(NSWFuelApiClientConnectionError) as exc:
         await client.get_reference_data()
 
     assert "Internal Server Error" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_server_error_raises_connection_error(session, mock_token):
+    mock_token.get(
+        "https://api.onegov.nsw.gov.au/FuelPriceCheck/v2/fuel/prices",
+        status=500,
+        payload={"message": "Internal Server Error"},
+    )
+
+    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    with pytest.raises(NSWFuelApiClientConnectionError):
+        await client.get_fuel_prices()
+
+
+

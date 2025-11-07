@@ -1,10 +1,11 @@
 # tests/test_integration.py
 
+from dotenv import load_dotenv
+import os
 import pytest
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
-from nsw_fuel import FuelCheckClient
+from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientAuthError
 
 
 @pytest.fixture
@@ -18,10 +19,9 @@ async def session():
 @pytest.fixture
 def client(session):
     """Return a FuelCheckClient instance for integration tests."""
-    # Replace with your actual client_id and client_secret
-    CLIENT_ID = "YOUR_CLIENT_ID"
-    CLIENT_SECRET = "YOUR_CLIENT_SECRET"
-    return FuelCheckClient(session=session, client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+    # Load client_id and client_secret from .env file
+    load_dotenv()
+    return FuelCheckClient(session=session, client_id=os.environ["NSWFUELCHECKAPI_KEY"], client_secret=os.environ["NSWFUELCHECKAPI_SECRET"])
 
 
 @pytest.mark.integration
@@ -86,3 +86,12 @@ async def test_get_fuel_prices_within_radius(client):
         assert station_price.station.code > 0
         assert station_price.price.price > 0
         assert station_price.price.fuel_type == fuel_type
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_authentication_failure(session):
+    """Integration test to confirm auth failure raises correct exception."""
+
+    client = FuelCheckClient(session=session, client_id="invalid", client_secret="wrong")
+    with pytest.raises(NSWFuelApiClientAuthError):
+        await client._async_get_token()

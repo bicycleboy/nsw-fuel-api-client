@@ -2,9 +2,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Any, Dict
 
-from requests import Response  # remove when fixing error handling
-
-
 class Price(object):
     def __init__(self, fuel_type: str, price: float,
                  last_updated: Optional[datetime], price_unit: Optional[str],
@@ -228,35 +225,4 @@ class GetFuelPricesResponse(object):
         return GetFuelPricesResponse(
             stations=stations,
             prices=prices
-        )
-
-
-class FuelCheckError(Exception):
-    def __init__(self, error_code: Optional[str] = None,
-                 description: Optional[str] = None) -> None:
-        super(FuelCheckError, self).__init__(description)
-        self.error_code = error_code
-
-    @classmethod
-    def create(cls, response: Response) -> 'FuelCheckError':
-        error_code = None
-        description = response.text
-        try:
-            data = response.json()
-            if 'errorDetails' in data:
-                error_details = data['errorDetails']
-                if type(error_details) == list and len(error_details) > 0:
-                    error_details = error_details[0]
-                    error_code = error_details.get('code')
-                    description = error_details.get('description')
-                elif type(error_details) == dict:
-                    error_code = error_details.get('code')
-                    description = error_details.get('message') # type: ignore
-
-        except ValueError:
-            pass
-
-        return FuelCheckError(
-            error_code=error_code,
-            description=description
         )
