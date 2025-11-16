@@ -1,11 +1,30 @@
-from .client import FuelCheckClient
+"""NSW Fuel Check API."""
+from .client import FuelCheckClient, NSWFuelApiClientError
 from .dto import (
-    AveragePrice, Variance, Station, Period, Price,
-    GetFuelPricesResponse, FuelType, GetReferenceDataResponse,
-    SortField, TrendPeriod
+    AveragePrice,
+    FuelType,
+    GetFuelPricesResponse,
+    GetReferenceDataResponse,
+    Period,
+    Price,
+    SortField,
+    Station,
+    TrendPeriod,
+    Variance,
 )
 
-__all__ = ["FuelCheckClient", "AveragePrice", "Variance", "Station", "Period",
-           "Price", "GetFuelPricesResponse", "FuelType",
-           "GetReferenceDataResponse", "SortField", "TrendPeriod"]
+__all__ = [
+    "AveragePrice",
+    "FuelCheckClient",
+    "FuelType",
+    "GetFuelPricesResponse",
+    "GetReferenceDataResponse",
+    "NSWFuelApiClientError",
+    "Period",
+    "Price",
+    "SortField",
+    "Station",
+    "TrendPeriod",
+    "Variance",
+]
 __version__ = "0.0.0-dev"

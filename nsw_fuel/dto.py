@@ -1,6 +1,9 @@
+"""NSW Fuel Check API data types."""
+
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Any, Dict
+from typing import Any, Dict, List, Optional
+
 
 class Price(object):
     def __init__(self, fuel_type: str, price: float,
@@ -19,29 +22,29 @@ class Price(object):
         lastupdated = None
         try:
             lastupdated = datetime.strptime(
-                data['lastupdated'], '%d/%m/%Y %H:%M:%S')
+                data["lastupdated"], "%d/%m/%Y %H:%M:%S")
         except ValueError:
             pass
         try:
             lastupdated = datetime.strptime(
-                data['lastupdated'], '%Y-%m-%d %H:%M:%S')
+                data["lastupdated"], "%Y-%m-%d %H:%M:%S")
         except ValueError:
             pass
 
         station_code = None # type: Optional[int]
-        if 'stationcode' in data:
-            station_code = int(data['stationcode'])
+        if "stationcode" in data:
+            station_code = int(data["stationcode"])
 
         return Price(
-            fuel_type=data['fueltype'],
-            price=data['price'],
+            fuel_type=data["fueltype"],
+            price=data["price"],
             last_updated=lastupdated,
-            price_unit=data.get('priceunit'),
+            price_unit=data.get("priceunit"),
             station_code=station_code
         )
 
     def __repr__(self) -> str:
-        return '<Price fuel_type={} price={}>'.format(
+        return "<Price fuel_type={} price={}>".format(
             self.fuel_type, self.price)
 
 
@@ -59,25 +62,25 @@ class Station(object):
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> 'Station':
         return Station(
-            id=data.get('stationid'),
-            brand=data['brand'],
-            code=int(data['code']),
-            name=data['name'],
-            address=data['address'],
-            latitude=data['location']['latitude'],
-            longitude=data['location']['longitude'],
+            id=data.get("stationid"),
+            brand=data["brand"],
+            code=int(data["code"]),
+            name=data["name"],
+            address=data["address"],
+            latitude=data["location"]["latitude"],
+            longitude=data["location"]["longitude"],
         )
 
     def __repr__(self) -> str:
-        return '<Station id={} code={} brand={} name={} latitude={} longitude={}>'.format(
+        return "<Station id={} code={} brand={} name={} latitude={} longitude={}>".format(
             self.id, self.code, self.brand, self.name, self.latitude, self.longitude)
 
 
 class Period(Enum):
-    DAY = 'Day'
-    MONTH = 'Month'
-    YEAR = 'Year'
-    WEEK = 'Week'
+    DAY = "Day"
+    MONTH = "Month"
+    YEAR = "Year"
+    WEEK = "Week"
 
 
 class Variance(object):
@@ -87,15 +90,15 @@ class Variance(object):
         self.price = price
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'Variance':
+    def deserialize(cls, data: Dict[str, Any]) -> "Variance":
         return Variance(
-            fuel_type=data['Code'],
-            period=Period(data['Period']),
-            price=data['Price'],
+            fuel_type=data["Code"],
+            period=Period(data["Period"]),
+            price=data["Price"],
         )
 
     def __repr__(self) -> str:
-        return '<Variance fuel_type={} period={} price={}>'.format(
+        return "<Variance fuel_type={} period={} price={}>".format(
             self.fuel_type,
             self.period,
             self.price,
@@ -111,32 +114,27 @@ class AveragePrice(object):
         self.captured = captured
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'AveragePrice':
-        period = Period(data['Period'])
+    def deserialize(cls, data: Dict[str, Any]) -> "AveragePrice":
+        period = Period(data["Period"])
 
-        captured_raw = data['Captured']
+        captured_raw = data["Captured"]
         if period in [Period.DAY, Period.WEEK, Period.MONTH]:
-            captured = datetime.strptime(captured_raw, '%Y-%m-%d')
+            captured = datetime.strptime(captured_raw, "%Y-%m-%d")
         elif period == Period.YEAR:
-            captured = datetime.strptime(captured_raw, '%B %Y')
+            captured = datetime.strptime(captured_raw, "%B %Y")
         else:
             captured = captured_raw
 
         return AveragePrice(
-            fuel_type=data['Code'],
+            fuel_type=data["Code"],
             period=period,
-            price=data['Price'],
+            price=data["Price"],
             captured=captured,
         )
 
     def __repr__(self) -> str:
-        return ('<AveragePrice fuel_type={} period={} price={} '
-                'captured={}>').format(
-            self.fuel_type,
-            self.period,
-            self.price,
-            self.captured
-        )
+        return (f"<AveragePrice fuel_type={self.fuel_type} period={self.period} price={self.price} "
+                f"captured={self.captured}>")
 
 
 class FuelType(object):
@@ -145,10 +143,10 @@ class FuelType(object):
         self.name = name
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'FuelType':
+    def deserialize(cls, data: Dict[str, Any]) -> "FuelType":
         return FuelType(
-            code=data['code'],
-            name=data['name']
+            code=data["code"],
+            name=data["name"]
         )
 
 
@@ -158,10 +156,10 @@ class TrendPeriod(object):
         self.description = description
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'TrendPeriod':
+    def deserialize(cls, data: Dict[str, Any]) -> "TrendPeriod":
         return TrendPeriod(
-            period=data['period'],
-            description=data['description']
+            period=data["period"],
+            description=data["description"]
         )
 
 
@@ -171,10 +169,10 @@ class SortField(object):
         self.name = name
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'SortField':
+    def deserialize(cls, data: Dict[str, Any]) -> "SortField":
         return SortField(
-            code=data['code'],
-            name=data['name']
+            code=data["code"],
+            name=data["name"]
         )
 
 
@@ -189,15 +187,16 @@ class GetReferenceDataResponse(object):
         self.sort_fields = sort_fields
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'GetReferenceDataResponse':
-        stations = [Station.deserialize(x) for x in data['stations']['items']]
-        brands = [x['name'] for x in data['brands']['items']]
+    def deserialize(cls, data: Dict[str, Any]) -> "GetReferenceDataResponse":
+        """Convert raw data to typed objects."""
+        stations = [Station.deserialize(x) for x in data["stations"]["items"]]
+        brands = [x["name"] for x in data["brands"]["items"]]
         fuel_types = [FuelType.deserialize(x) for x in
-                      data['fueltypes']['items']]
+                      data["fueltypes"]["items"]]
         trend_periods = [TrendPeriod.deserialize(x) for x in
-                         data['trendperiods']['items']]
+                         data["trendperiods"]["items"]]
         sort_fields = [SortField.deserialize(x) for x in
-                       data['sortfields']['items']]
+                       data["sortfields"]["items"]]
 
         return GetReferenceDataResponse(
             stations=stations,
@@ -208,9 +207,7 @@ class GetReferenceDataResponse(object):
         )
 
     def __repr__(self) -> str:
-        return ('<GetReferenceDataResponse stations=<{} stations>>').format(
-            len(self.stations)
-        )
+        return (f"<GetReferenceDataResponse stations=<{len(self.stations)} stations>>")
 
 
 class GetFuelPricesResponse(object):

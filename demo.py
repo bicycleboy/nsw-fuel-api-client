@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Demo script for nsw-fuel-api-client that loads credentials from a file."""
 
-from datetime import datetime, timedelta, timezone
+import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Tuple
-import asyncio
+
 from aiohttp import ClientSession
-
-from nsw_fuel.client import FuelCheckClient, StationPrice # adjust this import if necessary
-
+from nsw_fuel.client import (  # adjust this import if necessary
+    FuelCheckClient,
+    StationPrice,
+)
 
 SECRETS_FILE = Path("secrets")
 logging.basicConfig(level=logging.INFO)
@@ -45,14 +47,14 @@ async def main() -> None:
         client = FuelCheckClient(session=session, client_id=api_key, client_secret=api_secret)
         station_code = "18798"
 
- 
+
         try:
             _LOGGER.info("Fetching price data for station %s...", station_code)
             prices = await client.get_fuel_prices_for_station(station_code)
         except Exception as exc:
             _LOGGER.error("Failed to fetch station prices: %s", exc)
             return
-        
+
         # Write the token to a file so we can use it in the nsw api site to understand the API
         if client._token:  # make sure token exists
             with open("token", "w") as f:
@@ -96,10 +98,10 @@ async def main() -> None:
             _LOGGER.error("Error fetching prices within radius: %s", e)
 
         # Fetch reference data
-        _LOGGER.info("Fetching reference data modified since yesterday...") 
+        _LOGGER.info("Fetching reference data modified since yesterday...")
 
         # Calculate "modified since yesterday"
-        modified_since_dt = datetime.now(timezone.utc) - timedelta(days=1)
+        modified_since_dt = datetime.now(UTC) - timedelta(days=1)
 
         # Call the function
         try:
