@@ -20,15 +20,20 @@ _LOGGER = logging.getLogger(__name__)
 def load_secrets() -> Tuple[str, str]:
     """Load API key and secret from a local 'secrets' file."""
     if not SECRETS_FILE.exists():
+        msg = (
+            f"Secrets file not found: {SECRETS_FILE}. "
+            f"Expected format: <key>, <secret>"
+        )
         raise FileNotFoundError(
-            f"Secrets file not found: {SECRETS_FILE}. Expected format: <key>, <secret>"
+            msg
         )
     with open(SECRETS_FILE, "r", encoding="utf-8") as file:
         line = file.readline().strip()
         parts = [p.strip() for p in line.split(",")]
         if len(parts) != 2:
+            msg = "Secrets file format invalid. Expected: <key>, <secret> on one line."
             raise ValueError(
-                "Secrets file format invalid. Expected: <key>, <secret> on one line."
+                msg
             )
         return parts[0], parts[1]
 
@@ -39,7 +44,7 @@ async def main() -> None:
     try:
         api_key, api_secret = load_secrets()
     except Exception as exc:
-        _LOGGER.error("Error loading secrets: %s", exc)
+        _LOGGER.exception("Error loading secrets: %s", exc)
         return
 
     # Create an aiohttp session
@@ -52,7 +57,7 @@ async def main() -> None:
             _LOGGER.info("Fetching price data for station %s...", station_code)
             prices = await client.get_fuel_prices_for_station(station_code)
         except Exception as exc:
-            _LOGGER.error("Failed to fetch station prices: %s", exc)
+            _LOGGER.exception("Failed to fetch station prices: %s", exc)
             return
 
         # Write the token to a file so we can use it in the nsw api site to understand the API
@@ -116,7 +121,7 @@ async def main() -> None:
 
             # Pretty-print JSON
 #            print(json.dumps(data_to_print, indent=4, default=str))
-            print(f"✅ Reference Data Stations Count: {len(response.stations)}")
+            print(f"✅ Reference Data Stations Count: {len(response.stations)}")  # noqa: T201
 
         except Exception as e:
             print(f"Error fetching reference data: {e}")

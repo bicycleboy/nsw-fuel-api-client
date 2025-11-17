@@ -1,14 +1,18 @@
 """NSW Fuel Check API data types."""
 
+from contextlib import suppress
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-class Price(object):
+class Price:
+    """Fuel Price by fuel type, by station."""
+
     def __init__(self, fuel_type: str, price: float,
-                 last_updated: Optional[datetime], price_unit: Optional[str],
-                 station_code: Optional[int]) -> None:
+                 last_updated: datetime | None, price_unit: str | None,
+                 station_code: int | None) -> None:
+        """Initialize fuel price details."""
         self.fuel_type = fuel_type
         self.price = price
         self.last_updated = last_updated
@@ -16,41 +20,40 @@ class Price(object):
         self.station_code = station_code
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'Price':
-
-        # Stupid API has two different date representations! :O
+    def deserialize(cls, data: dict[str, Any]) -> "Price":
+        """Convert API data into a Price object."""
         lastupdated = None
-        try:
-            lastupdated = datetime.strptime(
-                data["lastupdated"], "%d/%m/%Y %H:%M:%S")
-        except ValueError:
-            pass
-        try:
-            lastupdated = datetime.strptime(
-                data["lastupdated"], "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            pass
 
-        station_code = None # type: Optional[int]
-        if "stationcode" in data:
-            station_code = int(data["stationcode"])
+        # Try both date formats (API is inconsistent…)
+        with suppress(ValueError):
+            lastupdated = datetime.strptime(data["lastupdated"], "%d/%m/%Y %H:%M:%S")  # noqa: DTZ007
+
+        if lastupdated is None:
+            with suppress(ValueError):
+                lastupdated = datetime.strptime(  # noqa: DTZ007
+                    data["lastupdated"], "%Y-%m-%d %H:%M:%S")
+
+        station_code = int(data["stationcode"]) if "stationcode" in data else None
 
         return Price(
-            fuel_type=data["fueltype"],
-            price=data["price"],
-            last_updated=lastupdated,
-            price_unit=data.get("priceunit"),
-            station_code=station_code
-        )
+                fuel_type=data["fueltype"],
+                price=data["price"],
+                last_updated=lastupdated,
+                price_unit=data.get("priceunit"),
+                station_code=station_code
+            )
 
     def __repr__(self) -> str:
-        return "<Price fuel_type={} price={}>".format(
-            self.fuel_type, self.price)
+        """Represent object as string."""
+        return f"<Price fuel_type={self.fuel_type} price={self.price}>"
 
 
-class Station(object):
-    def __init__(self, id: Optional[str], brand: str, code: int,
+class Station:
+    """Fuel Station attributes."""
+
+    def __init__(self, id: str | None, brand: str, code: int,  # noqa: PLR0913
             name: str, address: str, latitude: float, longitude: float) -> None:
+        """Initialise a Station with identifying and location details."""
         self.id = id
         self.brand = brand
         self.code = code
@@ -60,7 +63,8 @@ class Station(object):
         self.longitude = longitude
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'Station':
+    def deserialize(cls, data: dict[str, Any]) -> "Station":
+        """Convert station attributes to typed object."""
         return Station(
             id=data.get("stationid"),
             brand=data["brand"],
@@ -72,9 +76,11 @@ class Station(object):
         )
 
     def __repr__(self) -> str:
-        return "<Station id={} code={} brand={} name={} latitude={} longitude={}>".format(
-            self.id, self.code, self.brand, self.name, self.latitude, self.longitude)
-
+        """Represent object as string."""
+        return(
+            f"<Station id={self.id} code={self.code} brand={self.brand} "
+            f"name={self.name} latitude={self.latitude} longitude={self.longitude}>"
+        )
 
 class Period(Enum):
     DAY = "Day"
@@ -83,14 +89,14 @@ class Period(Enum):
     WEEK = "Week"
 
 
-class Variance(object):
+class Variance:
     def __init__(self, fuel_type: str, period: Period, price: float) -> None:
         self.fuel_type = fuel_type
         self.period = period
         self.price = price
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Variance":
+    def deserialize(cls, data: dict[str, Any]) -> "Variance":
         return Variance(
             fuel_type=data["Code"],
             period=Period(data["Period"]),
@@ -98,14 +104,15 @@ class Variance(object):
         )
 
     def __repr__(self) -> str:
-        return "<Variance fuel_type={} period={} price={}>".format(
-            self.fuel_type,
-            self.period,
-            self.price,
+        """Represent object as string."""
+        return(
+            f"<Variance fuel_type={self.fuel_type} period={self.period} "
+            f"price={self.price}>"
         )
 
+class AveragePrice:
+    """Average price by fuel type for a time period."""
 
-class AveragePrice(object):
     def __init__(self, fuel_type: str, period: Period, price: float,
                  captured: datetime) -> None:
         self.fuel_type = fuel_type
@@ -114,14 +121,15 @@ class AveragePrice(object):
         self.captured = captured
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "AveragePrice":
+    def deserialize(cls, data: dict[str, Any]) -> "AveragePrice":
+        """Convert string to typed object."""
         period = Period(data["Period"])
 
         captured_raw = data["Captured"]
         if period in [Period.DAY, Period.WEEK, Period.MONTH]:
-            captured = datetime.strptime(captured_raw, "%Y-%m-%d")
+            captured = datetime.strptime(captured_raw, "%Y-%m-%d")  # noqa: DTZ007
         elif period == Period.YEAR:
-            captured = datetime.strptime(captured_raw, "%B %Y")
+            captured = datetime.strptime(captured_raw, "%B %Y")  # noqa: DTZ007
         else:
             captured = captured_raw
 
@@ -133,6 +141,7 @@ class AveragePrice(object):
         )
 
     def __repr__(self) -> str:
+        """Return instance data as string."""
         return (f"<AveragePrice fuel_type={self.fuel_type} period={self.period} price={self.price} "
                 f"captured={self.captured}>")
 
@@ -143,43 +152,43 @@ class FuelType(object):
         self.name = name
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "FuelType":
+    def deserialize(cls, data: dict[str, Any]) -> "FuelType":
         return FuelType(
             code=data["code"],
             name=data["name"]
         )
 
 
-class TrendPeriod(object):
+class TrendPeriod:
     def __init__(self, period: str, description: str) -> None:
         self.period = period
         self.description = description
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "TrendPeriod":
+    def deserialize(cls, data: dict[str, Any]) -> "TrendPeriod":
         return TrendPeriod(
             period=data["period"],
             description=data["description"]
         )
 
 
-class SortField(object):
+class SortField:
     def __init__(self, code: str, name: str) -> None:
         self.code = code
         self.name = name
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "SortField":
+    def deserialize(cls, data: dict[str, Any]) -> "SortField":
         return SortField(
             code=data["code"],
             name=data["name"]
         )
 
 
-class GetReferenceDataResponse(object):
-    def __init__(self, stations: List[Station], brands: List[str],
-                 fuel_types: List[FuelType], trend_periods: List[TrendPeriod],
-                 sort_fields: List[SortField]) -> None:
+class GetReferenceDataResponse:
+    def __init__(self, stations: list[Station], brands: list[str],
+                 fuel_types: list[FuelType], trend_periods: list[TrendPeriod],
+                 sort_fields: list[SortField]) -> None:
         self.stations = stations
         self.brands = brands
         self.fuel_types = fuel_types
@@ -187,8 +196,8 @@ class GetReferenceDataResponse(object):
         self.sort_fields = sort_fields
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "GetReferenceDataResponse":
-        """Convert raw data to typed objects."""
+    def deserialize(cls, data: dict[str, Any]) -> "GetReferenceDataResponse":
+        """Convert raw reference data to typed objects."""
         stations = [Station.deserialize(x) for x in data["stations"]["items"]]
         brands = [x["name"] for x in data["brands"]["items"]]
         fuel_types = [FuelType.deserialize(x) for x in
@@ -207,18 +216,20 @@ class GetReferenceDataResponse(object):
         )
 
     def __repr__(self) -> str:
+        """Return instance as string."""
         return (f"<GetReferenceDataResponse stations=<{len(self.stations)} stations>>")
 
 
-class GetFuelPricesResponse(object):
-    def __init__(self, stations: List[Station], prices: List[Price]) -> None:
+class GetFuelPricesResponse:
+    def __init__(self, stations: list[Station], prices: list[Price]) -> None:
         self.stations = stations
         self.prices = prices
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> 'GetFuelPricesResponse':
-        stations = [Station.deserialize(x) for x in data['stations']]
-        prices = [Price.deserialize(x) for x in data['prices']]
+    def deserialize(cls, data: dict[str, Any]) -> "GetFuelPricesResponse":
+        """Convert fuel prices as string to typed object."""
+        stations = [Station.deserialize(x) for x in data["stations"]]
+        prices = [Price.deserialize(x) for x in data["prices"]]
         return GetFuelPricesResponse(
             stations=stations,
             prices=prices
