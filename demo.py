@@ -9,7 +9,7 @@ from typing import Tuple
 
 from aiohttp import ClientSession
 from nsw_fuel.client import (  # adjust this import if necessary
-    FuelCheckClient,
+    NSWFuelApiClient,
     StationPrice,
 )
 
@@ -49,7 +49,7 @@ async def main() -> None:
 
     # Create an aiohttp session
     async with ClientSession() as session:
-        client = FuelCheckClient(session=session, client_id=api_key, client_secret=api_secret)
+        client = NSWFuelApiClient(session=session, client_id=api_key, client_secret=api_secret)
         station_code = "18798"
 
 

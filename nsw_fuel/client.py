@@ -66,7 +66,7 @@ class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
     """Connection or server availability issue."""
 
 
-class FuelCheckClient:
+class NSWFuelApiClient:
     """API client for NSW FuelCheck."""
 
     def __init__(
@@ -104,7 +104,7 @@ class FuelCheckClient:
             NSWFuelApiClientError: For all other token fetch errors.
 
         """
-        LOGGER.debug("_async_get_token called")
+        LOGGER.debug("_async_get_token called ok")
         now = time.time()
 
         # Refresh if no token or it will expire soon
@@ -120,7 +120,7 @@ class FuelCheckClient:
                 "Accept": "application/json",
                 "Authorization": f"Basic {auth_b64}",
             }
-            LOGGER.debug("Instance of FuelCheckClient created: id=%s", id(self))
+            LOGGER.debug("Instance of NSWFuelApiClient created: id=%s", id(self))
 
             try:
                 async with self._session.get(

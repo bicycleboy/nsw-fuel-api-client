@@ -1,30 +1,26 @@
 """NSW Fuel Check API."""
-from .client import FuelCheckClient, NSWFuelApiClientError
+
+from .client import (
+    NSWFuelApiClient,
+    NSWFuelApiClientAuthError,
+    NSWFuelApiClientConnectionError,
+    NSWFuelApiClientError,
+)
 from .dto import (
-    AveragePrice,
-    FuelType,
     GetFuelPricesResponse,
     GetReferenceDataResponse,
-    Period,
     Price,
-    SortField,
     Station,
-    TrendPeriod,
-    Variance,
 )
 
 __all__ = [
-    "AveragePrice",
-    "FuelCheckClient",
-    "FuelType",
     "GetFuelPricesResponse",
     "GetReferenceDataResponse",
+    "NSWFuelApiClient",
+    "NSWFuelApiClientAuthError",
+    "NSWFuelApiClientConnectionError",
     "NSWFuelApiClientError",
-    "Period",
     "Price",
-    "SortField",
     "Station",
-    "TrendPeriod",
-    "Variance",
 ]
-__version__ = "0.0.0-dev"
+__version__ = "2.0.0-dev"

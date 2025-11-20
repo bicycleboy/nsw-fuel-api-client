@@ -51,10 +51,10 @@ class Price:
 class Station:
     """Fuel Station attributes."""
 
-    def __init__(self, id: str | None, brand: str, code: int,  # noqa: PLR0913
+    def __init__(self, ident: str | None, brand: str, code: int,  # noqa: PLR0913
             name: str, address: str, latitude: float, longitude: float) -> None:
         """Initialise a Station with identifying and location details."""
-        self.id = id
+        self.ident = ident
         self.brand = brand
         self.code = code
         self.name = name
@@ -66,7 +66,7 @@ class Station:
     def deserialize(cls, data: dict[str, Any]) -> "Station":
         """Convert station attributes to typed object."""
         return Station(
-            id=data.get("stationid"),
+            ident=data.get("stationid"),
             brand=data["brand"],
             code=int(data["code"]),
             name=data["name"],
@@ -78,11 +78,13 @@ class Station:
     def __repr__(self) -> str:
         """Represent object as string."""
         return(
-            f"<Station id={self.id} code={self.code} brand={self.brand} "
+            f"<Station ident={self.ident} code={self.code} brand={self.brand} "
             f"name={self.name} latitude={self.latitude} longitude={self.longitude}>"
         )
 
 class Period(Enum):
+    """Supported time periods used for pricing variance calculations."""
+
     DAY = "Day"
     MONTH = "Month"
     YEAR = "Year"
@@ -90,13 +92,17 @@ class Period(Enum):
 
 
 class Variance:
+    """Represent the price variance of a fuel type over a given period."""
+
     def __init__(self, fuel_type: str, period: Period, price: float) -> None:
+        """Initialize a Variance value."""
         self.fuel_type = fuel_type
         self.period = period
         self.price = price
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "Variance":
+        """Create a Variance instance from API response data."""
         return Variance(
             fuel_type=data["Code"],
             period=Period(data["Period"]),
@@ -104,7 +110,7 @@ class Variance:
         )
 
     def __repr__(self) -> str:
-        """Represent object as string."""
+        """Represent variance instance as string."""
         return(
             f"<Variance fuel_type={self.fuel_type} period={self.period} "
             f"price={self.price}>"
@@ -115,6 +121,7 @@ class AveragePrice:
 
     def __init__(self, fuel_type: str, period: Period, price: float,
                  captured: datetime) -> None:
+        """Initialize an AveragePrice value."""
         self.fuel_type = fuel_type
         self.period = period
         self.price = price
@@ -122,7 +129,7 @@ class AveragePrice:
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "AveragePrice":
-        """Convert string to typed object."""
+        """Create an AveragePrice instance from API response data."""
         period = Period(data["Period"])
 
         captured_raw = data["Captured"]
@@ -141,18 +148,24 @@ class AveragePrice:
         )
 
     def __repr__(self) -> str:
-        """Return instance data as string."""
-        return (f"<AveragePrice fuel_type={self.fuel_type} period={self.period} price={self.price} "
-                f"captured={self.captured}>")
+        """Return average price instance data as string."""
+        return (
+            f"<AveragePrice fuel_type={self.fuel_type} period={self.period} "
+            f"price={self.price} captured={self.captured}>"
+        )
 
 
-class FuelType(object):
+class FuelType:
+    """Describe a fuel type code and name."""
+
     def __init__(self, code: str, name: str) -> None:
+        """Initialize a FuelType."""
         self.code = code
         self.name = name
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "FuelType":
+        """Create a FuelType instance from API response data."""
         return FuelType(
             code=data["code"],
             name=data["name"]
@@ -160,12 +173,16 @@ class FuelType(object):
 
 
 class TrendPeriod:
+    """Represent a trend-analysis period and its description."""
+
     def __init__(self, period: str, description: str) -> None:
+        """Initialize a TrendPeriod."""
         self.period = period
         self.description = description
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "TrendPeriod":
+        """Create a TrendPeriod instance from API response data."""
         return TrendPeriod(
             period=data["period"],
             description=data["description"]
@@ -173,12 +190,16 @@ class TrendPeriod:
 
 
 class SortField:
+    """Represent a sortable field for fuel price lists."""
+
     def __init__(self, code: str, name: str) -> None:
+        """Initialize a SortField."""
         self.code = code
         self.name = name
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "SortField":
+        """Create a SortField instance from API response data."""
         return SortField(
             code=data["code"],
             name=data["name"]
@@ -186,9 +207,13 @@ class SortField:
 
 
 class GetReferenceDataResponse:
+    """Container for reference data returned from the API."""
+
     def __init__(self, stations: list[Station], brands: list[str],
                  fuel_types: list[FuelType], trend_periods: list[TrendPeriod],
                  sort_fields: list[SortField]) -> None:
+        """Initialize a GetReferenceDataResponse object."""
+        self.stations = stations
         self.stations = stations
         self.brands = brands
         self.fuel_types = fuel_types
@@ -197,7 +222,7 @@ class GetReferenceDataResponse:
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "GetReferenceDataResponse":
-        """Convert raw reference data to typed objects."""
+        """Convert raw API reference data to typed objects."""
         stations = [Station.deserialize(x) for x in data["stations"]["items"]]
         brands = [x["name"] for x in data["brands"]["items"]]
         fuel_types = [FuelType.deserialize(x) for x in
@@ -216,18 +241,21 @@ class GetReferenceDataResponse:
         )
 
     def __repr__(self) -> str:
-        """Return instance as string."""
+        """Return a string representation of the reference data response."""
         return (f"<GetReferenceDataResponse stations=<{len(self.stations)} stations>>")
 
 
 class GetFuelPricesResponse:
+    """Container for fuel price data returned from the API."""
+
     def __init__(self, stations: list[Station], prices: list[Price]) -> None:
+        """Initialize a GetFuelPricesResponse object."""
         self.stations = stations
         self.prices = prices
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "GetFuelPricesResponse":
-        """Convert fuel prices as string to typed object."""
+        """Convert API fuel prices as string to typed object."""
         stations = [Station.deserialize(x) for x in data["stations"]]
         prices = [Price.deserialize(x) for x in data["prices"]]
         return GetFuelPricesResponse(

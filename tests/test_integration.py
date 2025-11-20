@@ -1,11 +1,11 @@
 # tests/test_integration.py
 
-from dotenv import load_dotenv
 import os
-import pytest
-from datetime import datetime 
+from datetime import datetime
 
-from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientAuthError
+import pytest
+from dotenv import load_dotenv
+from nsw_fuel.client import NSWFuelApiClient, NSWFuelApiClientAuthError
 
 
 @pytest.fixture
@@ -18,10 +18,10 @@ async def session():
 
 @pytest.fixture
 def client(session):
-    """Return a FuelCheckClient instance for integration tests."""
+    """Return a NSWFuelApiClient instance for integration tests."""
     # Load client_id and client_secret from .env file
     load_dotenv()
-    return FuelCheckClient(session=session, client_id=os.environ["NSWFUELCHECKAPI_KEY"], client_secret=os.environ["NSWFUELCHECKAPI_SECRET"])
+    return NSWFuelApiClient(session=session, client_id=os.environ["NSWFUELCHECKAPI_KEY"], client_secret=os.environ["NSWFUELCHECKAPI_SECRET"])
 
 
 @pytest.mark.integration
@@ -92,6 +92,6 @@ async def test_get_fuel_prices_within_radius(client):
 async def test_authentication_failure(session):
     """Integration test to confirm auth failure raises correct exception."""
 
-    client = FuelCheckClient(session=session, client_id="invalid", client_secret="wrong")
+    client = NSWFuelApiClient(session=session, client_id="invalid", client_secret="wrong")
     with pytest.raises(NSWFuelApiClientAuthError):
         await client._async_get_token()

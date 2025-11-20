@@ -7,7 +7,11 @@ from aiohttp import ClientResponse
 
 
 
-from nsw_fuel.client import FuelCheckClient, NSWFuelApiClientError, NSWFuelApiClientConnectionError
+from nsw_fuel.client import (
+    NSWFuelApiClient,
+    NSWFuelApiClientError,
+    NSWFuelApiClientConnectionError,
+)
 from nsw_fuel.const import AUTH_URL, BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT, NEARBY_ENDPOINT, REFERENCE_ENDPOINT
 
 # Paths to fixture files
@@ -26,7 +30,7 @@ async def test_get_fuel_prices(session, mock_token):
 
     mock_token.get(url, payload=fixture_data)
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     response = await client.get_fuel_prices()
 
     assert len(response.stations) == 2
@@ -57,7 +61,7 @@ async def test_get_fuel_prices_for_station(session, mock_token):
         },
     )
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     result = await client.get_fuel_prices_for_station(station_code)
 
     assert len(result) == 2
@@ -134,7 +138,7 @@ async def test_get_fuel_prices_within_radius(session, mock_token):
         },
     )
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     result = await client.get_fuel_prices_within_radius(
         latitude=-33.0, longitude=151.0, radius=10, fuel_type="E10"
     )
@@ -155,7 +159,7 @@ async def test_get_reference_data(session, mock_token):
 
     mock_token.get(url, payload=fixture_data)
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     response = await client.get_reference_data()
 
     assert len(response.brands) == 2
@@ -179,7 +183,7 @@ async def test_get_fuel_prices_server_error(session, mock_token):
     url = f"{BASE_URL}{PRICES_ENDPOINT}"
     mock_token.get(url, status=500, body="Internal Server Error.")
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientConnectionError) as exc:
         await client.get_fuel_prices()
 
@@ -204,7 +208,7 @@ async def test_get_fuel_prices_for_station_client_error(session, mock_token):
         },
     )
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_fuel_prices_for_station(station_code)
 
@@ -217,7 +221,7 @@ async def test_get_fuel_prices_within_radius_server_error(session, mock_token):
     url = f"{BASE_URL}{NEARBY_ENDPOINT}"
     mock_token.post(url, status=500, body="Internal Server Error.")
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_fuel_prices_within_radius(
             latitude=-33.0, longitude=151.0, radius=10, fuel_type="E10"
@@ -241,7 +245,7 @@ async def test_get_reference_data_client_error(session, mock_token):
         },
     )
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientError) as exc:
         await client.get_reference_data()
 
@@ -254,7 +258,7 @@ async def test_get_reference_data_server_error(session, mock_token):
     url = f"{BASE_URL}{REFERENCE_ENDPOINT}"
     mock_token.get(url, status=500, body="Internal Server Error.")
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientConnectionError) as exc:
         await client.get_reference_data()
 
@@ -269,6 +273,6 @@ async def test_server_error_raises_connection_error(session, mock_token):
         payload={"message": "Internal Server Error"},
     )
 
-    client = FuelCheckClient(session=session, client_id="key", client_secret="secret")
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     with pytest.raises(NSWFuelApiClientConnectionError):
         await client.get_fuel_prices()
