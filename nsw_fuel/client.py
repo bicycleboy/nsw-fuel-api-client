@@ -356,6 +356,8 @@ class NSWFuelApiClient:
         """
         Fetch the fuel prices for a specific fuel station asynchronously.
 
+        TODO: Need to pass in state as station ids not unique
+
         Raises:
             NSWFuelApiClientAuthError: If authentication fails.
             NSWFuelApiClientConnectionError: If network or server issues occur.

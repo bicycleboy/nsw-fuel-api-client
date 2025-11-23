@@ -6,6 +6,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Tuple
+import json
 
 from aiohttp import ClientSession
 from nsw_fuel.client import (  # adjust this import if necessary
@@ -120,7 +121,7 @@ async def main() -> None:
                 data_to_print = response  # fallback if already serializable
 
             # Pretty-print JSON
-#            print(json.dumps(data_to_print, indent=4, default=str))
+ #           print(json.dumps(data_to_print, indent=4, default=str))
             print(f"✅ Reference Data Stations Count: {len(response.stations)}")  # noqa: T201
 
         except Exception as e:
