@@ -1,6 +1,7 @@
 """NSW Fuel Check API, main API interface."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import time
@@ -9,8 +10,6 @@ from datetime import UTC, datetime
 from typing import Any, NamedTuple
 
 from aiohttp import (
-    ClientConnectionError,
-    ClientError,
     ClientResponse,
     ClientResponseError,
     ClientSession,
@@ -22,8 +21,9 @@ from .const import (
     AUTH_URL,
     BASE_URL,
     DEFAULT_TIMEOUT,
-    HTTP_CLIENT_SERVER_ERRORS,
+    HTTP_CLIENT_SERVER_ERROR,
     HTTP_INTERNAL_SERVER_ERROR,
+    HTTP_TIMEOUT_ERROR,
     HTTP_UNAUTHORIZED,
     LOGGER,
     NEARBY_ENDPOINT,
@@ -66,8 +66,9 @@ class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
     """Connection or server availability issue."""
 
 
+#---------------------
 class NSWFuelApiClient:
-    """API client for NSW FuelCheck."""
+    """Main API client for NSW FuelCheck."""
 
     def __init__(
         self, session: ClientSession, client_id: str, client_secret: str
@@ -95,90 +96,89 @@ class NSWFuelApiClient:
             return ed.get("description") or ed.get("message")
         return None
 
+
+    # ---------------------------------------------
     async def _async_get_token(self) -> str | None:
         """
         Get or refresh OAuth2 token from the NSW Fuel API.
 
         Raises:
-            NSWFuelApiClientAuthError: If authentication fails.
-            NSWFuelApiClientError: For all other token fetch errors.
+            NSWFuelApiClientAuthError: If authentication fails (401).
+            NSWFuelApiClientError: For all other token fetch or parse errors.
 
         """
-        LOGGER.debug("_async_get_token called ok")
         now = time.time()
 
-        # Refresh if no token or it will expire soon
+        # Refresh if no token or will expire within 60 seconds
         if not self._token or now > (self._token_expiry - 60):
             LOGGER.debug("Refreshing NSW Fuel API token")
 
             params = {"grant_type": "client_credentials"}
-            # Base64 encode client_id:client_secret
             auth_str = f"{self._client_id}:{self._client_secret}"
-            auth_bytes = auth_str.encode("utf-8")
-            auth_b64 = base64.b64encode(auth_bytes).decode("utf-8")
+            auth_b64 = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
             headers = {
                 "Accept": "application/json",
                 "Authorization": f"Basic {auth_b64}",
             }
-            LOGGER.debug("Instance of NSWFuelApiClient created: id=%s", id(self))
 
             try:
                 async with self._session.get(
-                    AUTH_URL, params=params, headers=headers
-                ) as response:
+                    AUTH_URL,
+                    params=params,
+                    headers=headers) as response:
+                    # Raise for non-2xx HTTP status codes
                     response.raise_for_status()
-
-                    text = await response.text()
 
                     LOGGER.debug(
                         "Token response status=%s, content_type=%s, params=%s",
                         response.status,
                         response.content_type,
-                        {"grant_type": params["grant_type"]},  # redact secret
+                        {"grant_type": params["grant_type"]},
                     )
 
-                try:
-                    if "application/json" in response.content_type:
-                        result = await response.json()
-                    else:
-                        LOGGER.warning(
-                            "Expected application/json, got %s", response.content_type
-                        )
-                        result = json.loads(text)
-                except (json.JSONDecodeError, ValueError) as err:
-                    msg = "Failed to parse token response JSON"
-                    raise NSWFuelApiClientError(msg) from err
-                except ClientConnectionError as err:
-                    LOGGER.exception("Connection dropped while parsing token")
-                    msg = "Connection lost during token fetch"
-                    raise NSWFuelApiClientError(msg) from err
+                    # Parse JSON token response
+                    try:
+                        if "application/json" in response.content_type:
+                            result = await response.json()
+                        else:
+                            text = await response.text()
+                            LOGGER.warning(
+                                "Expected application/json, got %s",
+                                response.content_type)
+                            result = json.loads(text)
+                    except (json.JSONDecodeError, ValueError) as err:
+                        msg = "Failed to parse token response JSON"
+                        raise NSWFuelApiClientError(msg) from err
+
 
             except ClientResponseError as err:
                 if err.status == HTTP_UNAUTHORIZED:
                     msg = "Invalid NSW Fuel Check API credentials"
+                    # Return specific auth error to applicatioin eg home assisant
+                    # so the user to reenter credenentials
                     raise NSWFuelApiClientAuthError(msg) from err
                 msg = f"Token request failed with status {err.status}: {err.message}"
                 raise NSWFuelApiClientError(msg) from err
 
-            except OSError as err:
-                msg = f"Network error fetching NSW Fuel Check token: {err}"
+            except Exception as err:
+                msg = f"Unexpected error fetching token: {err}"
                 raise NSWFuelApiClientError(msg) from err
 
-            # Parse result and cache token
+            # No errors, validate token
             access_token = result.get("access_token")
-            if access_token is not None:
-                self._token = access_token
-                expires_in = int(result.get("expires_in", 3600))
-                self._token_expiry = now + expires_in
-                LOGGER.debug("Token acquired; expires in %s seconds", expires_in)
-            else:
-                self._token = None
-                msg = "No access_token in NSW Fuel Check token response"
+            if not access_token:
+                msg = "No access token in NSW Fuel Check token response"
                 raise NSWFuelApiClientError(msg)
+
+            expires_in = int(result.get("expires_in", 3600))
+            self._token = access_token
+            self._token_expiry = now + expires_in
+            LOGGER.debug("Token acquired; expires in %s seconds", expires_in)
 
         return self._token
 
-    async def _async_request(  # noqa: PLR0912, PLR0915
+    #------------------------
+    async def _async_request(
         self,
         path: str,
         method: str = "GET",
@@ -187,7 +187,7 @@ class NSWFuelApiClient:
         extra_headers: dict[str, str] | None = None,
     ) -> Any:
         """
-        Perform an authorized HTTP request (GET or POST) to the NSW Fuel API.
+        Process all HTTP requests except auth, supports GET or POST to the NSW Fuel API.
 
         Raises:
             NSWFuelApiClientAuthError: If authentication fails.
@@ -217,30 +217,68 @@ class NSWFuelApiClient:
                 return await response.text()
 
         async def _handle_http_error(
-            status: int, data: Any, response: ClientResponse
-        ) -> None:
-            error_details_msg = self._extract_error_details(data)
+            status: int,
+            data: Any,
+            response: ClientResponse,
+            attempt: int,
+            max_retries: int,
+        ) -> bool:
+            """
+            Process HTTP errors and determine if retry is needed.
+
+            If the Oauth token is invalid (even though expiry checked), try a new one.
+            The NSW Fuel API appears to return 408 when busy, so retry.
+
+            Returns:
+                True if caller should retry the request.
+                Raises appropriate exceptions otherwise.
+
+            """
+            details = self._extract_error_details(data)
 
             if status == HTTP_UNAUTHORIZED:
+                if attempt < max_retries:
+                    # Clear token to force refresh and retry
+                    self._token = None
+                    return True
                 raise NSWFuelApiClientAuthError(
-                    error_details_msg or "Authentication failed during request"
+                    details or "Authentication failed during request"
                 )
+
+            if status == HTTP_TIMEOUT_ERROR:
+                if attempt < max_retries:
+                    return True
+                raise NSWFuelApiClientConnectionError(
+                    details or "Request timed out after retry."
+                )
+
+            # Server errors (5xx)
             if status >= HTTP_INTERNAL_SERVER_ERROR:
                 raise NSWFuelApiClientConnectionError(
-                    error_details_msg or f"Server error {status}: {response.reason}"
+                    details or f"Server error {status}: {response.reason}"
                 )
-            raise NSWFuelApiClientError(
-                error_details_msg or f"HTTP error {status}: {response.reason}"
-            )
+
+            # Client errors (4xx but not handled above)
+            if status >= HTTP_CLIENT_SERVER_ERROR:
+                raise NSWFuelApiClientError(
+                    details or f"HTTP error {status}: {response.reason}"
+                )
+
+            # If status is 2xx or 3xx, no error: no retry needed
+            return False
+
 
         while attempt <= max_retries:
             token = await self._async_get_token()
             if not token:
                 msg = "No access token available for NSW Fuel API request"
-                raise NSWFuelApiClientError(msg)
+                raise NSWFuelApiClientError(
+                    msg
+                )
 
             headers = _build_headers(token)
             url = f"{BASE_URL}{path}"
+            LOGGER.debug("_async_request fetching url %s", url)
 
             try:
                 async with self._session.request(
@@ -254,69 +292,43 @@ class NSWFuelApiClient:
                     status = response.status
                     data = await _parse_response(response)
 
-                    if status == HTTP_UNAUTHORIZED:
-                        LOGGER.warning("401 Unauthorized, refreshing token, retry...")
-                        self._token = None
+                    should_retry = await _handle_http_error(
+                        status, data, response, attempt, max_retries
+                    )
+                    if should_retry:
                         attempt += 1
-                        if attempt > max_retries:
-                            msg = "Failed to authenticate after retry"
-                            raise NSWFuelApiClientAuthError(msg)  # noqa: TRY301
+                        LOGGER.debug("Retrying after %d...", status)
+                        await asyncio.sleep(1)
                         continue
-
-                    if status >= HTTP_CLIENT_SERVER_ERRORS:
-                        await _handle_http_error(status, data, response)
 
                     return data
 
-            except ClientResponseError as err:
-                error_details_msg = None
-                try:
-                    if err.response is not None:
-                        error_json = await err.response.json(content_type=None)
-                        error_details_msg = self._extract_error_details(error_json)
-                except (ContentTypeError, json.JSONDecodeError):
-                    pass
-
-                if err.status == HTTP_UNAUTHORIZED:
-                    msg = error_details_msg or "Authentication failed during request"
-                    raise NSWFuelApiClientAuthError(
-                        msg
-                    ) from err
-                if err.status >= HTTP_INTERNAL_SERVER_ERROR:
-                    msg = (
-                        error_details_msg or f"Server error {err.status}: {err.message}"
-                    )
-                    raise NSWFuelApiClientConnectionError(
-                        msg
-                    ) from err
-                msg = error_details_msg or f"HTTP error {err.status}: {err.message}"
-                raise NSWFuelApiClientError(
-                    msg
-                ) from err
-
-            except ClientError as err:
-                msg = f"Connection error: {err}"
-                raise NSWFuelApiClientError(msg) from err
-
-            except NSWFuelApiClientError:
+            except (NSWFuelApiClientAuthError,
+                    NSWFuelApiClientConnectionError,
+                    NSWFuelApiClientError):
+                # Preserve specific error types and messages
                 raise
 
             except Exception as err:
-                msg = f"{err}"
-                raise NSWFuelApiClientError(msg) from err
+                # Wrap any other unexpected exceptions in a generic API error
+                LOGGER.debug(err)
+                raise NSWFuelApiClientError(str(err)) from err
 
-        # If somehow no return occurred  raise generic error
+        # Just in case we exit loop without returning or raising
         msg = "Failed to perform request"
         raise NSWFuelApiClientError(msg)
 
+    #--------------------------------------------------------
     async def get_fuel_prices(self) -> GetFuelPricesResponse:
         """
-        Fetch all NSW fuel prices.
+        Fetch all fuel prices.
 
         Raises:
             NSWFuelApiClientAuthError: If authentication fails.
             NSWFuelApiClientConnectionError: If network or server issues occur.
             NSWFuelApiClientError: For all other API or data validation errors.
+
+        TODO: Accept state as parameter, API defaults to NSW only
 
         """
         try:
@@ -330,7 +342,7 @@ class NSWFuelApiClient:
             NSWFuelApiClientConnectionError,
             NSWFuelApiClientError,
         ):
-            # Pass through unchanged so HA can handle login issues distinctly
+            # Pass through unchanged to HA
             raise
 
         except Exception as err:
@@ -349,12 +361,14 @@ class NSWFuelApiClient:
 
         return GetFuelPricesResponse.deserialize(response)
 
+
+    # ------------------------------------
     async def get_fuel_prices_for_station(
         self,
         station_code: str,
     ) -> list[Price]:
         """
-        Fetch the fuel prices for a specific fuel station asynchronously.
+        Fetch the fuel prices for a specific fuel station.
 
         TODO: Need to pass in state as station ids not unique
 
@@ -374,27 +388,31 @@ class NSWFuelApiClient:
             NSWFuelApiClientConnectionError,
             NSWFuelApiClientError,
         ):
-            # Pass through unchanged so HA can handle issues distinctly
+            # Pass through unchanged to HA
             raise
 
         except Exception as err:
             # Catch unexpected parsing or logic issues
             msg = f"Unexpected failure getting station prices for {station_code}: {err}"
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg) from err
 
         # Validate response structure
         if not response or "prices" not in response:
             msg = f"Malformed or empty response for station {station_code}"
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         prices_data = response.get("prices")
         if not prices_data:
             msg = f"No price data found for station {station_code}"
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         # Deserialize prices
         return [Price.deserialize(p) for p in prices_data]
 
+    # --------------------------------------
     async def get_fuel_prices_within_radius(  # noqa: PLR0913
         self,
         latitude: float,
@@ -459,7 +477,7 @@ class NSWFuelApiClient:
             NSWFuelApiClientConnectionError,
             NSWFuelApiClientError,
         ):
-            # Pass through unchanged so HA can handle issues distinctly
+            # Pass through unchanged to HA
             raise
 
         except Exception as err:
@@ -467,18 +485,21 @@ class NSWFuelApiClient:
                 f"Unexpected error fetching nearby prices for "
                 f"({latitude}, {longitude}): {err}"
             )
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg) from err
 
         # Validate structure
         if not response or "stations" not in response or "prices" not in response:
             msg = "Malformed or empty response for location "
             f"({latitude}, {longitude})"
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         stations_data = response.get("stations")
         prices_data = response.get("prices")
         if not stations_data or not prices_data:
             msg = f"No stations/prices found for location ({latitude}, {longitude})"
+            LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         # Deserialize stations
@@ -510,6 +531,8 @@ class NSWFuelApiClient:
 
         return station_prices
 
+
+    #----------------------------
     async def get_reference_data(
         self,
         modified_since: datetime | None = None,

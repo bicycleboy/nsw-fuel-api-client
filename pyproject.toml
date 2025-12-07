@@ -30,6 +30,7 @@ test = [
     "pytest-asyncio",
     "pytest-cov",
     "requests-mock",
+    "unittest",
     "aioresponses",
     "dotenv"
 ]

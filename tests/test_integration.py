@@ -4,8 +4,14 @@ import os
 from datetime import datetime
 
 import pytest
+from aioresponses import aioresponses
 from dotenv import load_dotenv
-from nsw_fuel.client import NSWFuelApiClient, NSWFuelApiClientAuthError
+from nsw_fuel.client import (
+    NSWFuelApiClient,
+    NSWFuelApiClientAuthError,
+    NSWFuelApiClientConnectionError,
+)
+from nsw_fuel.const import BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT
 
 
 @pytest.fixture
@@ -91,7 +97,7 @@ async def test_get_fuel_prices_within_radius(client):
 @pytest.mark.asyncio
 async def test_authentication_failure(session):
     """Integration test to confirm auth failure raises correct exception."""
-
     client = NSWFuelApiClient(session=session, client_id="invalid", client_secret="wrong")
     with pytest.raises(NSWFuelApiClientAuthError):
         await client._async_get_token()
+
