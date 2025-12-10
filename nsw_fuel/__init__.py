@@ -1,6 +1,7 @@
 """NSW Fuel Check API."""
 
 from .client import (
+    AustralianState,
     NSWFuelApiClient,
     NSWFuelApiClientAuthError,
     NSWFuelApiClientConnectionError,
@@ -14,6 +15,7 @@ from .dto import (
 )
 
 __all__ = [
+    "AustralianState",
     "GetFuelPricesResponse",
     "GetReferenceDataResponse",
     "NSWFuelApiClient",

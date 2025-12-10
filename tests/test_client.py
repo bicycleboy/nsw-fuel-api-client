@@ -57,6 +57,7 @@ async def test_get_fuel_prices(session, mock_token):
 async def test_get_fuel_prices_for_station(session, mock_token):
     """Test fetching prices for a single station."""
     station_code = "100"
+    state = "TAS"
     url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
     mock_token.get(
         url,
@@ -77,7 +78,7 @@ async def test_get_fuel_prices_for_station(session, mock_token):
     )
 
     client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
-    result = await client.get_fuel_prices_for_station(station_code)
+    result = await client.get_fuel_prices_for_station(station_code, state=state)
 
     assert len(result) == 2
     assert result[0].fuel_type == "E10"

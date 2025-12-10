@@ -7,6 +7,7 @@ import json
 import time
 import uuid
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Any, NamedTuple
 
 from aiohttp import (
@@ -53,7 +54,6 @@ class StationPrice(NamedTuple):
     price: Price
     station: Station
 
-
 class NSWFuelApiClientError(Exception):
     """Base class for all NSW Fuel API errors."""
 
@@ -65,8 +65,14 @@ class NSWFuelApiClientAuthError(NSWFuelApiClientError):
 class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
     """Connection or server availability issue."""
 
+class AustralianState(str, Enum):
+    """States currently supported by NSW Fuel Check."""
 
-#---------------------
+    NSW = "NSW"
+    TAS = "TAS"
+
+
+
 class NSWFuelApiClient:
     """Main API client for NSW FuelCheck."""
 
@@ -80,8 +86,10 @@ class NSWFuelApiClient:
         self._token: str | None = None
         self._token_expiry: float = 0
 
+
     def _format_dt(self, dt: datetime) -> str:
         return dt.strftime("%d/%m/%Y %I:%M:%S %p")
+
 
     @staticmethod
     def _extract_error_details(data: Any) -> str | None:
@@ -97,10 +105,10 @@ class NSWFuelApiClient:
         return None
 
 
-    # ---------------------------------------------
+
     async def _async_get_token(self) -> str | None:
         """
-        Get or refresh OAuth2 token from the NSW Fuel API.
+        Get or refresh OAuth2 token from the NSW Fuel Check API.
 
         Raises:
             NSWFuelApiClientAuthError: If authentication fails (401).
@@ -109,7 +117,7 @@ class NSWFuelApiClient:
         """
         now = time.time()
 
-        # Refresh if no token or will expire within 60 seconds
+        # Refresh if no token or will expire soon
         if not self._token or now > (self._token_expiry - 60):
             LOGGER.debug("Refreshing NSW Fuel API token")
 
@@ -128,13 +136,6 @@ class NSWFuelApiClient:
                     headers=headers) as response:
                     # Raise for non-2xx HTTP status codes
                     response.raise_for_status()
-
-                    LOGGER.debug(
-                        "Token response status=%s, content_type=%s, params=%s",
-                        response.status,
-                        response.content_type,
-                        {"grant_type": params["grant_type"]},
-                    )
 
                     # Parse JSON token response
                     try:
@@ -173,11 +174,11 @@ class NSWFuelApiClient:
             expires_in = int(result.get("expires_in", 3600))
             self._token = access_token
             self._token_expiry = now + expires_in
-            LOGGER.debug("Token acquired; expires in %s seconds", expires_in)
 
         return self._token
 
-    #------------------------
+
+
     async def _async_request(
         self,
         path: str,
@@ -187,7 +188,7 @@ class NSWFuelApiClient:
         extra_headers: dict[str, str] | None = None,
     ) -> Any:
         """
-        Process all HTTP requests except auth, supports GET or POST to the NSW Fuel API.
+        Process HTTP requests except auth, supports GET or POST to the Fuel Check  API.
 
         Raises:
             NSWFuelApiClientAuthError: If authentication fails.
@@ -195,8 +196,6 @@ class NSWFuelApiClient:
             NSWFuelApiClientError: For all other API or data validation errors.
 
         """
-        max_retries = 1
-        attempt = 0
 
         def _build_headers(token: str) -> dict[str, str]:
             base_headers = {
@@ -215,6 +214,8 @@ class NSWFuelApiClient:
                 return await response.json(encoding="utf-8", content_type=None)
             except (ContentTypeError, json.JSONDecodeError):
                 return await response.text()
+
+
 
         async def _handle_http_error(
             status: int,
@@ -267,6 +268,8 @@ class NSWFuelApiClient:
             # If status is 2xx or 3xx, no error: no retry needed
             return False
 
+        max_retries = 1
+        attempt = 0
 
         while attempt <= max_retries:
             token = await self._async_get_token()
@@ -278,7 +281,6 @@ class NSWFuelApiClient:
 
             headers = _build_headers(token)
             url = f"{BASE_URL}{path}"
-            LOGGER.debug("_async_request fetching url %s", url)
 
             try:
                 async with self._session.request(
@@ -298,7 +300,7 @@ class NSWFuelApiClient:
                     if should_retry:
                         attempt += 1
                         LOGGER.debug("Retrying after %d...", status)
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(0.5)
                         continue
 
                     return data
@@ -318,7 +320,8 @@ class NSWFuelApiClient:
         msg = "Failed to perform request"
         raise NSWFuelApiClientError(msg)
 
-    #--------------------------------------------------------
+
+
     async def get_fuel_prices(self) -> GetFuelPricesResponse:
         """
         Fetch all fuel prices.
@@ -362,15 +365,14 @@ class NSWFuelApiClient:
         return GetFuelPricesResponse.deserialize(response)
 
 
-    # ------------------------------------
+
     async def get_fuel_prices_for_station(
         self,
         station_code: str,
+        state: AustralianState | None = None,
     ) -> list[Price]:
         """
         Fetch the fuel prices for a specific fuel station.
-
-        TODO: Need to pass in state as station ids not unique
 
         Raises:
             NSWFuelApiClientAuthError: If authentication fails.
@@ -378,9 +380,12 @@ class NSWFuelApiClient:
             NSWFuelApiClientError: For all other API or data validation errors.
 
         """
+        params = {"state": state.value} if state is not None else None
+
         try:
             response: dict[str, Any] = await self._async_request(
-                PRICE_ENDPOINT.format(station_code=station_code)
+                PRICE_ENDPOINT.format(station_code=station_code),
+                params=params,
             )
 
         except (
@@ -412,7 +417,8 @@ class NSWFuelApiClient:
         # Deserialize prices
         return [Price.deserialize(p) for p in prices_data]
 
-    # --------------------------------------
+
+
     async def get_fuel_prices_within_radius(  # noqa: PLR0913
         self,
         latitude: float,
@@ -532,7 +538,7 @@ class NSWFuelApiClient:
         return station_prices
 
 
-    #----------------------------
+
     async def get_reference_data(
         self,
         modified_since: datetime | None = None,
