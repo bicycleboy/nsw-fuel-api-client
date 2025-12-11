@@ -282,6 +282,8 @@ class NSWFuelApiClient:
             headers = _build_headers(token)
             url = f"{BASE_URL}{path}"
 
+            LOGGER.debug("Fetching url=%s params=%s", url, params)
+
             try:
                 async with self._session.request(
                     method.upper(),
@@ -498,14 +500,14 @@ class NSWFuelApiClient:
         if not response or "stations" not in response or "prices" not in response:
             msg = "Malformed or empty response for location "
             f"({latitude}, {longitude})"
-            LOGGER.debug(msg)
+            LOGGER.warning(msg)
             raise NSWFuelApiClientError(msg)
 
         stations_data = response.get("stations")
         prices_data = response.get("prices")
         if not stations_data or not prices_data:
             msg = f"No stations/prices found for location ({latitude}, {longitude})"
-            LOGGER.debug(msg)
+            LOGGER.warning(msg)
             raise NSWFuelApiClientError(msg)
 
         # Deserialize stations
