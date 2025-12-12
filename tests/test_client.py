@@ -58,7 +58,7 @@ async def test_get_fuel_prices_for_station(session, mock_token):
     """Test fetching prices for a single station."""
     station_code = "100"
     state = "TAS"
-    url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
+    url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}?state={state}"
     mock_token.get(
         url,
         payload={

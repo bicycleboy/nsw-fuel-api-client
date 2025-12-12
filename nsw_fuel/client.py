@@ -65,12 +65,6 @@ class NSWFuelApiClientAuthError(NSWFuelApiClientError):
 class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
     """Connection or server availability issue."""
 
-class AustralianState(str, Enum):
-    """States currently supported by NSW Fuel Check."""
-
-    NSW = "NSW"
-    TAS = "TAS"
-
 
 
 class NSWFuelApiClient:
@@ -282,8 +276,7 @@ class NSWFuelApiClient:
             headers = _build_headers(token)
             url = f"{BASE_URL}{path}"
 
-            LOGGER.debug("Fetching url=%s params=%s", url, params)
-
+            LOGGER.debug("Fetching url=%s params=%s headers=%s", url, params, headers)
             try:
                 async with self._session.request(
                     method.upper(),
@@ -371,7 +364,7 @@ class NSWFuelApiClient:
     async def get_fuel_prices_for_station(
         self,
         station_code: str,
-        state: AustralianState | None = None,
+        state: str | None = None,
     ) -> list[Price]:
         """
         Fetch the fuel prices for a specific fuel station.
@@ -382,7 +375,7 @@ class NSWFuelApiClient:
             NSWFuelApiClientError: For all other API or data validation errors.
 
         """
-        params = {"state": state.value} if state is not None else None
+        params = {"state": state} if state is not None else None
 
         try:
             response: dict[str, Any] = await self._async_request(
