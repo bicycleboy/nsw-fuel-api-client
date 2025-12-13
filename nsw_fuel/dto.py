@@ -6,6 +6,8 @@ from enum import Enum
 from typing import Any
 
 
+from .const import DEFAULT_STATE
+
 class Price:
     """Fuel Price by fuel type, by station."""
 
@@ -51,8 +53,13 @@ class Price:
 class Station:
     """Fuel Station attributes."""
 
-    def __init__(self, ident: str | None, brand: str, code: int,
-            name: str, address: str, latitude: float, longitude: float, australian_state: str) -> None:
+    def __init__(self, ident: str | None,
+                brand: str, code: int,
+                name: str,
+                address: str,
+                latitude: float,
+                longitude: float,
+                australian_state: str) -> None:
         """Initialise a Station with identifying and location details."""
         self.ident = ident
         self.brand = brand
@@ -74,7 +81,7 @@ class Station:
             address=data["address"],
             latitude=data["location"]["latitude"],
             longitude=data["location"]["longitude"],
-            australian_state=data["state"],
+            australian_state=data.get("state") or DEFAULT_STATE,
         )
 
     def __repr__(self) -> str:

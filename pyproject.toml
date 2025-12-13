@@ -51,3 +51,6 @@ markers = [
 
 # Use a verbose output and colored diff for readability
 addopts = "-v --tb=short --color=yes"
+
+[tool.pylint.design]
+max-args = 6

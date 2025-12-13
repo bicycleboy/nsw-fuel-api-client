@@ -44,6 +44,7 @@ async def test_get_fuel_prices(session, mock_token):
     assert len(response.prices) == 5
     assert response.stations[0].name == "Cool Fuel Brand Hurstville"
     assert response.stations[1].name == "Fake Fuel Brand Kogarah"
+    assert response.stations[1].australian_state == "NSW"
     assert round(response.stations[1].latitude, 0) == -31
     assert round(response.stations[1].longitude, 0) == 152
     assert response.prices[0].fuel_type == "DL"
@@ -56,9 +57,8 @@ async def test_get_fuel_prices(session, mock_token):
 @pytest.mark.asyncio
 async def test_get_fuel_prices_for_station(session, mock_token):
     """Test fetching prices for a single station."""
-    station_code = "100"
-    state = "TAS"
-    url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}?state={state}"
+    station_code = "1000"
+    url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
     mock_token.get(
         url,
         payload={
@@ -78,11 +78,45 @@ async def test_get_fuel_prices_for_station(session, mock_token):
     )
 
     client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
-    result = await client.get_fuel_prices_for_station(station_code, state=state)
+    result = await client.get_fuel_prices_for_station(station_code)
 
     assert len(result) == 2
     assert result[0].fuel_type == "E10"
     assert result[0].price == 146.9
+    assert result[0].last_updated == datetime(
+        day=2, month=6, year=2018, hour=2, minute=3, second=4
+    )
+
+@pytest.mark.asyncio
+async def test_get_fuel_prices_for_tas_station(session, mock_token):
+    """Test fetching prices for a single TAS station."""
+    station_code = "100"
+    state = "TAS"
+    url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}?state={state}"
+    mock_token.get(
+        url,
+        payload={
+            "prices": [
+                {
+                    "fueltype": "E10",
+                    "price": 186.9,
+                    "lastupdated": "02/06/2018 02:03:04",
+                },
+                {
+                    "fueltype": "P95",
+                    "price": 180.0,
+                    "lastupdated": "02/06/2018 02:03:04",
+                },
+            ]
+        },
+    )
+
+    client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
+    result = await client.get_fuel_prices_for_station(station_code, state=state)
+
+    assert len(result) == 2
+    assert result[0].fuel_type == "E10"
+    assert result[0].price == 186.9
     assert result[0].last_updated == datetime(
         day=2, month=6, year=2018, hour=2, minute=3, second=4
     )

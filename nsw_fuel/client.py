@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import time
 import uuid
 from datetime import UTC, datetime
@@ -26,7 +27,6 @@ from .const import (
     HTTP_INTERNAL_SERVER_ERROR,
     HTTP_TIMEOUT_ERROR,
     HTTP_UNAUTHORIZED,
-    LOGGER,
     NEARBY_ENDPOINT,
     PRICE_ENDPOINT,
     PRICES_ENDPOINT,
@@ -41,6 +41,7 @@ from .dto import (
     Variance,
 )
 
+_LOGGER = logging.getLogger(__name__)
 
 class PriceTrends(NamedTuple):
     """PriceTrends."""
@@ -113,7 +114,7 @@ class NSWFuelApiClient:
 
         # Refresh if no token or will expire soon
         if not self._token or now > (self._token_expiry - 60):
-            LOGGER.debug("Refreshing NSW Fuel API token")
+            _LOGGER.debug("Refreshing NSW Fuel API token")
 
             params = {"grant_type": "client_credentials"}
             auth_str = f"{self._client_id}:{self._client_secret}"
@@ -137,7 +138,7 @@ class NSWFuelApiClient:
                             result = await response.json()
                         else:
                             text = await response.text()
-                            LOGGER.warning(
+                            _LOGGER.warning(
                                 "Expected application/json, got %s",
                                 response.content_type)
                             result = json.loads(text)
@@ -276,7 +277,7 @@ class NSWFuelApiClient:
             headers = _build_headers(token)
             url = f"{BASE_URL}{path}"
 
-            LOGGER.debug("Fetching url=%s params=%s headers=%s", url, params, headers)
+
             try:
                 async with self._session.request(
                     method.upper(),
@@ -294,7 +295,7 @@ class NSWFuelApiClient:
                     )
                     if should_retry:
                         attempt += 1
-                        LOGGER.debug("Retrying after %d...", status)
+                        _LOGGER.debug("Retrying after %d...", status)
                         await asyncio.sleep(0.5)
                         continue
 
@@ -302,13 +303,28 @@ class NSWFuelApiClient:
 
             except (NSWFuelApiClientAuthError,
                     NSWFuelApiClientConnectionError,
-                    NSWFuelApiClientError):
+                    NSWFuelApiClientError) as err:
                 # Preserve specific error types and messages
+                _LOGGER.debug(
+                    "API error fetching NSW Fuel Check API "
+                    "url=%s params=%s error=%s",
+                    url,
+                    params,
+                    err,
+                    exc_info=True,
+                )
                 raise
 
             except Exception as err:
                 # Wrap any other unexpected exceptions in a generic API error
-                LOGGER.debug(err)
+                _LOGGER.debug(
+                    "Unexpeced error fetching NSW Fuel Check API "
+                    "url=%s params=%s error=%s",
+                    url,
+                    params,
+                    err,
+                    exc_info=True,
+                )
                 raise NSWFuelApiClientError(str(err)) from err
 
         # Just in case we exit loop without returning or raising
@@ -344,7 +360,7 @@ class NSWFuelApiClient:
             raise
 
         except Exception as err:
-            LOGGER.debug("Caught unexpected Exception: %s - %s", type(err), err)
+            _LOGGER.debug("Caught unexpected Exception: %s - %s", type(err), err)
             msg = "Unexpected failure fetching fuel prices: %s"
             raise NSWFuelApiClientError(msg, err) from err
 
@@ -394,19 +410,19 @@ class NSWFuelApiClient:
         except Exception as err:
             # Catch unexpected parsing or logic issues
             msg = f"Unexpected failure getting station prices for {station_code}: {err}"
-            LOGGER.debug(msg)
+            _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg) from err
 
         # Validate response structure
         if not response or "prices" not in response:
             msg = f"Malformed or empty response for station {station_code}"
-            LOGGER.debug(msg)
+            _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         prices_data = response.get("prices")
         if not prices_data:
             msg = f"No price data found for station {station_code}"
-            LOGGER.debug(msg)
+            _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         # Deserialize prices
@@ -466,13 +482,6 @@ class NSWFuelApiClient:
                 extra_headers={"Content-Type": "application/json"},
             )
 
-            LOGGER.debug(
-                "Raw nearby fuel prices response for lat=%s lon=%s: %s",
-                latitude,
-                longitude,
-                response,
-            )
-
         except (
             NSWFuelApiClientAuthError,
             NSWFuelApiClientConnectionError,
@@ -486,21 +495,21 @@ class NSWFuelApiClient:
                 f"Unexpected error fetching nearby prices for "
                 f"({latitude}, {longitude}): {err}"
             )
-            LOGGER.debug(msg)
+            _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg) from err
 
         # Validate structure
         if not response or "stations" not in response or "prices" not in response:
             msg = "Malformed or empty response for location "
             f"({latitude}, {longitude})"
-            LOGGER.warning(msg)
+            _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
         stations_data = response.get("stations")
         prices_data = response.get("prices")
         if not stations_data or not prices_data:
             msg = f"No stations/prices found for location ({latitude}, {longitude})"
-            LOGGER.warning(msg)
+            _LOGGER.warning(msg)
             raise NSWFuelApiClientError(msg)
 
         # Deserialize stations
@@ -521,9 +530,9 @@ class NSWFuelApiClient:
                             StationPrice(price=price, station=station_obj)
                         )
             except (KeyError, TypeError, ValueError) as parse_err:
-                LOGGER.warning("Skipping malformed price entry: %s", parse_err)
+                _LOGGER.warning("Skipping malformed price entry: %s", parse_err)
 
-        LOGGER.debug(
+        _LOGGER.debug(
             "Deserialized %d nearby station prices for lat=%s lon=%s",
             len(station_prices),
             latitude,
