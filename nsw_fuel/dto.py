@@ -59,7 +59,7 @@ class Station:
                 address: str,
                 latitude: float,
                 longitude: float,
-                australian_state: str) -> None:
+                au_state: str) -> None:
         """Initialise a Station with identifying and location details."""
         self.ident = ident
         self.brand = brand
@@ -68,7 +68,7 @@ class Station:
         self.address = address
         self.latitude = latitude
         self.longitude = longitude
-        self.australian_state = australian_state
+        self.au_state = au_state
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "Station":
@@ -81,14 +81,14 @@ class Station:
             address=data["address"],
             latitude=data["location"]["latitude"],
             longitude=data["location"]["longitude"],
-            australian_state=data.get("state") or DEFAULT_STATE,
+            au_state=data.get("state") or DEFAULT_STATE,
         )
 
     def __repr__(self) -> str:
         """Represent object as string."""
         return(
             f"<Station ident={self.ident} code={self.code} brand={self.brand} "
-            f"name={self.name} latitude={self.latitude} longitude={self.longitude} state={self.australian_state}>"
+            f"name={self.name} latitude={self.latitude} longitude={self.longitude} state={self.au_state}>"
         )
 
 class Period(Enum):

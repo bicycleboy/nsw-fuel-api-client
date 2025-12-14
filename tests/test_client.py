@@ -44,7 +44,7 @@ async def test_get_fuel_prices(session, mock_token):
     assert len(response.prices) == 5
     assert response.stations[0].name == "Cool Fuel Brand Hurstville"
     assert response.stations[1].name == "Fake Fuel Brand Kogarah"
-    assert response.stations[1].australian_state == "NSW"
+    assert response.stations[1].au_state == "NSW"
     assert round(response.stations[1].latitude, 0) == -31
     assert round(response.stations[1].longitude, 0) == 152
     assert response.prices[0].fuel_type == "DL"
