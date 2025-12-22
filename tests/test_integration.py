@@ -4,14 +4,13 @@ import os
 from datetime import datetime
 
 import pytest
-from aioresponses import aioresponses
 from dotenv import load_dotenv
 from nsw_fuel.client import (
     NSWFuelApiClient,
     NSWFuelApiClientAuthError,
     NSWFuelApiClientConnectionError,
 )
-from nsw_fuel.const import BASE_URL, PRICES_ENDPOINT, PRICE_ENDPOINT
+from nsw_fuel.const import BASE_URL, PRICE_ENDPOINT, PRICES_ENDPOINT
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, NamedTuple
+from typing import Any
 
 from aiohttp import (
     ClientResponse,
@@ -38,22 +38,12 @@ from .dto import (
     GetReferenceDataResponse,
     Price,
     Station,
-    Variance,
+    StationPrice,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-class PriceTrends(NamedTuple):
-    """PriceTrends."""
 
-    variances: list[Variance]
-    average_prices: list[AveragePrice]
-
-class StationPrice(NamedTuple):
-    """StationPrice."""
-
-    price: Price
-    station: Station
 
 class NSWFuelApiClientError(Exception):
     """Base class for all NSW Fuel API errors."""
@@ -65,7 +55,6 @@ class NSWFuelApiClientAuthError(NSWFuelApiClientError):
 
 class NSWFuelApiClientConnectionError(NSWFuelApiClientError):
     """Connection or server availability issue."""
-
 
 
 class NSWFuelApiClient:
@@ -446,9 +435,9 @@ class NSWFuelApiClient:
 
         Args:
             See also API definition at api.nsw.gov.au/Product/Index/22
-            latitude: Latitude of the center point.
-            longitude: Longitude of the center point.
-            radius: Radius in meters/kilometers to search.
+            latitude: Latitude of the centre point.
+            longitude: Longitude of the centre point.
+            radius: Radius in kilometers to search.
             fuel_type: Fuel type code (e.g., 'U91', 'E10').
             brands: Optional list of brand names to filter.
             named_location: Suburb or postcode
@@ -524,10 +513,10 @@ class NSWFuelApiClient:
             try:
                 price = Price.deserialize(serialized_price)
                 if price.station_code is not None:
-                    station_obj = stations.get(price.station_code)
-                    if station_obj:
+                    station = stations.get(price.station_code)
+                    if station:
                         station_prices.append(
-                            StationPrice(price=price, station=station_obj)
+                            StationPrice(price=price, station=station)
                         )
             except (KeyError, TypeError, ValueError) as parse_err:
                 _LOGGER.warning("Skipping malformed price entry: %s", parse_err)

@@ -2,8 +2,8 @@ import json
 import os
 import re
 from datetime import datetime
-
 from unittest.mock import AsyncMock
+
 import pytest
 from aioresponses import aioresponses
 from nsw_fuel.client import (
@@ -20,6 +20,7 @@ from nsw_fuel.const import (
     PRICES_ENDPOINT,
     REFERENCE_ENDPOINT,
 )
+from nsw_fuel.dto import Station
 
 # Paths to fixture files
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")

@@ -3,10 +3,10 @@
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
-from typing import Any
-
+from typing import Any, NamedTuple
 
 from .const import DEFAULT_STATE
+
 
 class Price:
     """Fuel Price by fuel type, by station."""
@@ -21,9 +21,10 @@ class Price:
         self.price_unit = price_unit
         self.station_code = station_code
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "Price":
-        """Convert API data into a Price object."""
+        """Convert API JSON data into a Price object."""
         lastupdated = None
 
         # Try both date formats (API is inconsistent…)
@@ -44,6 +45,7 @@ class Price:
                 price_unit=data.get("priceunit"),
                 station_code=station_code
             )
+
 
     def __repr__(self) -> str:
         """Represent object as string."""
@@ -70,6 +72,7 @@ class Station:
         self.longitude = longitude
         self.au_state = au_state
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "Station":
         """Convert station attributes to typed object."""
@@ -84,12 +87,21 @@ class Station:
             au_state=data.get("state") or DEFAULT_STATE,
         )
 
+
     def __repr__(self) -> str:
         """Represent object as string."""
-        return(
+        return (
             f"<Station ident={self.ident} code={self.code} brand={self.brand} "
-            f"name={self.name} latitude={self.latitude} longitude={self.longitude} state={self.au_state}>"
+            f"{self.name=} {self.latitude=} {self.longitude=} {self.au_state=}>"
         )
+
+
+class StationPrice(NamedTuple):
+    """StationPrice."""
+
+    price: Price
+    station: Station
+
 
 class Period(Enum):
     """Supported time periods used for pricing variance calculations."""
@@ -109,6 +121,7 @@ class Variance:
         self.period = period
         self.price = price
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "Variance":
         """Create a Variance instance from API response data."""
@@ -118,12 +131,14 @@ class Variance:
             price=data["Price"],
         )
 
+
     def __repr__(self) -> str:
         """Represent variance instance as string."""
         return(
             f"<Variance fuel_type={self.fuel_type} period={self.period} "
             f"price={self.price}>"
         )
+
 
 class AveragePrice:
     """Average price by fuel type for a time period."""
@@ -135,6 +150,7 @@ class AveragePrice:
         self.period = period
         self.price = price
         self.captured = captured
+
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "AveragePrice":
@@ -156,6 +172,7 @@ class AveragePrice:
             captured=captured,
         )
 
+
     def __repr__(self) -> str:
         """Return average price instance data as string."""
         return (
@@ -171,6 +188,7 @@ class FuelType:
         """Initialize a FuelType."""
         self.code = code
         self.name = name
+
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "FuelType":
@@ -189,6 +207,7 @@ class TrendPeriod:
         self.period = period
         self.description = description
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "TrendPeriod":
         """Create a TrendPeriod instance from API response data."""
@@ -205,6 +224,7 @@ class SortField:
         """Initialize a SortField."""
         self.code = code
         self.name = name
+
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "SortField":
@@ -229,6 +249,7 @@ class GetReferenceDataResponse:
         self.trend_periods = trend_periods
         self.sort_fields = sort_fields
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "GetReferenceDataResponse":
         """Convert raw API reference data to typed objects."""
@@ -249,6 +270,7 @@ class GetReferenceDataResponse:
             sort_fields=sort_fields
         )
 
+
     def __repr__(self) -> str:
         """Return a string representation of the reference data response."""
         return (f"<GetReferenceDataResponse stations=<{len(self.stations)} stations>>")
@@ -262,6 +284,7 @@ class GetFuelPricesResponse:
         self.stations = stations
         self.prices = prices
 
+
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> "GetFuelPricesResponse":
         """Convert API fuel prices as string to typed object."""
@@ -271,3 +294,10 @@ class GetFuelPricesResponse:
             stations=stations,
             prices=prices
         )
+
+
+class PriceTrends(NamedTuple):
+    """PriceTrends."""
+
+    variances: list[Variance]
+    average_prices: list[AveragePrice]
