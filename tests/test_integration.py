@@ -92,6 +92,31 @@ async def test_get_fuel_prices_within_radius(client):
         assert station_price.price.price > 0
         assert station_price.price.fuel_type == fuel_type
 
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_fuel_prices_within_radius_tas(client):
+    """Integration test for fetching fuel prices within a radius of a location."""
+    # Example coordinates: Sydney CBD
+    latitude = -42.88
+    longitude = 147.32
+    radius = 1000  # meters
+    fuel_type = "U91"
+
+    results = await client.get_fuel_prices_within_radius(
+        latitude=latitude,
+        longitude=longitude,
+        radius=radius,
+        fuel_type=fuel_type,
+    )
+    assert len(results) >= 1
+    for station_price in results:
+        assert station_price.station.code > 0
+        assert station_price.station.au_state == "TAS"
+        assert station_price.price.price > 0
+        assert station_price.price.fuel_type == fuel_type
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_authentication_failure(session):
