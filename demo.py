@@ -4,42 +4,31 @@
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
+import os
 from pathlib import Path
 from typing import Tuple
 import json
 
 from aiohttp import ClientSession
+from sqlalchemy import false
 from nsw_fuel.client import (
     NSWFuelApiClient,
     StationPrice,
-    AustralianState
 )
 
 
-SECRETS_FILE = Path("secrets")
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
-def load_secrets() -> Tuple[str, str]:
-    """Load API key and secret from a local 'secrets' file."""
-    if not SECRETS_FILE.exists():
-        msg = (
-            f"Secrets file not found: {SECRETS_FILE}. "
-            f"Expected format: <key>, <secret>"
-        )
-        raise FileNotFoundError(
-            msg
-        )
-    with open(SECRETS_FILE, "r", encoding="utf-8") as file:
-        line = file.readline().strip()
-        parts = [p.strip() for p in line.split(",")]
-        if len(parts) != 2:
-            msg = "Secrets file format invalid. Expected: <key>, <secret> on one line."
-            raise ValueError(
-                msg
-            )
-        return parts[0], parts[1]
 
+def load_secrets() -> Tuple[str, str]:
+    key = os.getenv("NSWFUELCHECKAPI_KEY", "")
+    secret = os.getenv("NSWFUELCHECKAPI_SECRET", "")
+
+    if not key or not secret:
+        msg = f"KEY={key} and or SECRET={secret} not set"
+        raise FileNotFoundError(msg)
+    return key, secret
 
 
 async def main() -> None:
@@ -52,15 +41,16 @@ async def main() -> None:
 
     # Create an aiohttp session
     async with ClientSession() as session:
-        client = NSWFuelApiClient(session=session, client_id=api_key, client_secret=api_secret)
-        station_code = "400"
-
+        client = NSWFuelApiClient(
+            session=session, client_id=api_key, client_secret=api_secret
+        )
+        station_code = "18813"
 
         try:
             _LOGGER.info("Fetching price data for station %s...", station_code)
             prices = await client.get_fuel_prices_for_station(
                 station_code,
-                state=AustralianState.TAS,
+                state="NSW",
             )
         except Exception as exc:
             _LOGGER.exception("Failed to fetch station prices: %s", exc)
@@ -82,12 +72,11 @@ async def main() -> None:
                 f"(Last updated: {price.last_updated})"
             )
 
-
         # Parameters
-        longitude = 149.14
-        latitude = -35.27
-        radius = 15
-        fuel_type = "E10-U91"
+        longitude = 150.29
+        latitude = -35.66
+        radius = 105
+        fuel_type = "U91"
 
         try:
             prices: list[StationPrice] = await client.get_fuel_prices_within_radius(
@@ -97,8 +86,8 @@ async def main() -> None:
                 fuel_type=fuel_type,
             )
             for item in prices:
-                station = item.station        # Correct attribute
-                price = item.price            # Correct attribute
+                station = item.station
+                price = item.price
 
                 print(
                     f"{station.brand} {station.name} (${price.price}) "
@@ -117,7 +106,9 @@ async def main() -> None:
         if False:
             # Call the function
             try:
-                response = await client.get_reference_data(modified_since=modified_since_dt, states="NSW")
+                response = await client.get_reference_data(
+                    modified_since=modified_since_dt, states="NSW"
+                )
 
                 # Convert the response to a dict if it has a `__dict__` or similar method
                 # Otherwise, adjust based on how your response object stores data
@@ -127,7 +118,7 @@ async def main() -> None:
                     data_to_print = response  # fallback if already serializable
 
                 # Pretty-print JSON
-    #           print(json.dumps(data_to_print, indent=4, default=str))
+                #           print(json.dumps(data_to_print, indent=4, default=str))
 
                 fuel_type_strings = [ft.name for ft in response.fuel_types]
                 print(fuel_type_strings)
@@ -136,7 +127,6 @@ async def main() -> None:
 
             except Exception as e:
                 print(f"Error fetching reference data: {e}")
-
 
 
 if __name__ == "__main__":

@@ -1,56 +1,56 @@
-[build-system]
-requires = ["setuptools>=64"]
-build-backend = "setuptools.build_meta"
+    [build-system]
+    requires = ["setuptools>=64"]
+    build-backend = "setuptools.build_meta"
 
-[project]
-name = "nsw-fuel"
-version = "2.0.0"
-readme = "README.md"
-description = "Client library for NSW Fuel API"
-authors = [
-    { name = "Nick Whyte", email = "nick@nickwhyte.com" },
-    { name = "Chris", email = "bicycleboy61@gmail.com" }
-]
-license = { text = "MIT" }
-requires-python = ">=3.9"
-dependencies = ["aiohttp>=3.9"]
+    [project]
+    name = "nsw-fuel"
+    version = "2.0.0"
+    readme = "README.md"
+    description = "Client library for NSW Fuel API"
+    authors = [
+        { name = "Nick Whyte", email = "nick@nickwhyte.com" },
+        { name = "Chris", email = "bicycleboy61@gmail.com" }
+    ]
+    license = { text = "MIT" }
+    requires-python = ">=3.9"
+    dependencies = ["aiohttp>=3.9"]
 
-classifiers = [
-    "Intended Audience :: Developers",
-    "Programming Language :: Python",
-    "License :: OSI Approved :: MIT License"
-]
+    classifiers = [
+        "Intended Audience :: Developers",
+        "Programming Language :: Python",
+        "License :: OSI Approved :: MIT License"
+    ]
 
-[project.urls]
-Homepage = "https://github.com/nickw444/nsw-fuel-api-client"
+    [project.urls]
+    Homepage = "https://github.com/nickw444/nsw-fuel-api-client"
 
-[project.optional-dependencies]
-test = [
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "requests-mock",
-    "aioresponses",
-    "dotenv"
-]
+    [project.optional-dependencies]
+    test = [
+        "pytest",
+        "pytest-asyncio",
+        "pytest-cov",
+        "requests-mock",
+        "aioresponses",
+        "dotenv"
+    ]
 
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["nsw_fuel"]
+    [tool.setuptools.packages.find]
+    where = ["src"]
+    include = ["nsw_fuel"]
 
-[tool.pytest.ini_options]
-# Automatically discover tests inside these paths
-testpaths = ["tests"]
+    [tool.pytest.ini_options]
+    # Automatically discover tests inside these paths
+    testpaths = ["tests"]
 
-# Markers for async tests, integration, etc.
-markers = [
-    "asyncio: mark test as async",
-    "integration: mark test as integration-level"
-]
+    # Markers for async tests, integration, etc.
+    markers = [
+        "asyncio: mark test as async",
+        "integration: mark test as integration-level"
+    ]
 
-# Use a verbose output and colored diff for readability
-addopts = "-v --tb=short --color=yes"
+    # Use a verbose output and colored diff for readability
+    addopts = "-v --tb=short --color=yes"
 
-[tool.pylint.design]
-max-args = 6
+    [tool.pylint.design]
+    max-args = 6

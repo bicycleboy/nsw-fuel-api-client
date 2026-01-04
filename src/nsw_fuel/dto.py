@@ -55,7 +55,7 @@ class Price:
 class Station:
     """Fuel Station attributes."""
 
-    def __init__(self, ident: str | None,
+    def __init__(self, ident: str | None,  # noqa: PLR0913
                 brand: str, code: int,
                 name: str,
                 address: str,

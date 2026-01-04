@@ -8,7 +8,6 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any
 
 from aiohttp import (
@@ -33,7 +32,6 @@ from .const import (
     REFERENCE_ENDPOINT,
 )
 from .dto import (
-    AveragePrice,
     GetFuelPricesResponse,
     GetReferenceDataResponse,
     Price,
@@ -441,7 +439,7 @@ class NSWFuelApiClient:
             fuel_type: Fuel type code (e.g., 'U91', 'E10').
             brands: Optional list of brand names to filter.
             named_location: Suburb or postcode
-            sort_by: price or ?
+            sort_by: price or distance
             sort_ascending: true or false for decending
 
         Raises:
@@ -461,7 +459,7 @@ class NSWFuelApiClient:
                 "sortby": sort_by,
                 "sortascending": str(sort_ascending).lower(),  # "true"/"false"
             }
-
+            _LOGGER.debug("payload=%s", payload)
             # Perform the async POST request
             response: dict[str, Any] = await self._async_request(
                 path=NEARBY_ENDPOINT,
