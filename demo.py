@@ -73,8 +73,12 @@ async def main() -> None:
             )
 
         # Parameters
-        longitude = 150.29
-        latitude = -35.66
+        # Durras
+        #longitude = 150.29
+        #latitude = -35.66
+        # Hobart
+        longitude = 147.33
+        latitude = -42.88
         radius = 105
         fuel_type = "U91"
 
