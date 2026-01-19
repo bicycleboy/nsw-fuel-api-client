@@ -74,13 +74,13 @@ async def main() -> None:
 
         # Parameters
         # Durras
-        #longitude = 150.29
-        #latitude = -35.66
+        longitude = 150.29
+        latitude = -35.66
         # Hobart
-        longitude = 147.33
-        latitude = -42.88
+        #longitude = 147.33
+        #latitude = -42.88
         radius = 105
-        fuel_type = "U91"
+        fuel_type = "E10-U91"
 
         try:
             prices: list[StationPrice] = await client.get_fuel_prices_within_radius(
