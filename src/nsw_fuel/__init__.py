@@ -11,6 +11,7 @@ from .dto import (
     GetReferenceDataResponse,
     Price,
     Station,
+    StationPrice,
 )
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "NSWFuelApiClientError",
     "Price",
     "Station",
+    "StationPrice",
 ]
 __version__ = "2.0.0-dev"
