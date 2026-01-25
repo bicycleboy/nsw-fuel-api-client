@@ -2,20 +2,17 @@
 """Demo script for nsw-fuel-api-client that loads credentials from a file."""
 
 import asyncio
-import logging
-from datetime import UTC, datetime, timedelta
-import os
-from pathlib import Path
-from typing import Tuple
 import json
+import logging
+import os
+from datetime import UTC, datetime, timedelta
 
 from aiohttp import ClientSession
-from sqlalchemy import false
 from nsw_fuel.client import (
     NSWFuelApiClient,
     StationPrice,
 )
-
+from sqlalchemy import false
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
@@ -79,8 +76,8 @@ async def main() -> None:
         # Hobart
         #longitude = 147.33
         #latitude = -42.88
-        radius = 105
-        fuel_type = "E10-U91"
+        radius = 25
+        fuel_type = "E10"
 
         try:
             prices: list[StationPrice] = await client.get_fuel_prices_within_radius(
