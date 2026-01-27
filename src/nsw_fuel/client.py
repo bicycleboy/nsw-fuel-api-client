@@ -411,6 +411,12 @@ class NSWFuelApiClient:
             _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
+        _LOGGER.debug(
+            "get_fuel_prices_for_station fetched %d prices for station %s",
+            len(prices_data),
+            station_code,
+        )
+
         # Deserialize prices
         return [Price.deserialize(p) for p in prices_data]
 
