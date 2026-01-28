@@ -1,3 +1,4 @@
+"""Test NSW Fuel Check API Client."""
 import json
 import os
 import re
@@ -31,6 +32,7 @@ LOVS_FILE = os.path.join(FIXTURES_DIR, "lovs.json")
 @pytest.mark.asyncio
 async def test_get_fuel_prices(session, mock_token):
     """Test fetching all fuel prices."""
+
     url = f"{BASE_URL}{PRICES_ENDPOINT}"
 
     with open(ALL_PRICES_FILE) as f:
@@ -56,7 +58,7 @@ async def test_get_fuel_prices(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_for_station(session, mock_token):
+async def test_get_fuel_prices_for_station(session, mock_token) -> None:
     """Test fetching prices for a single station."""
     station_code = "1000"
     url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
@@ -89,7 +91,7 @@ async def test_get_fuel_prices_for_station(session, mock_token):
     )
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_for_tas_station(session, mock_token):
+async def test_get_fuel_prices_for_tas_station(session, mock_token) -> None:
     """Test fetching prices for a single TAS station."""
     station_code = "100"
     state = "TAS"
@@ -124,7 +126,7 @@ async def test_get_fuel_prices_for_tas_station(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_within_radius(session, mock_token):
+async def test_get_fuel_prices_within_radius(session, mock_token) -> None:
     """Test fetching prices within radius."""
     url = f"{BASE_URL}{NEARBY_ENDPOINT}"
 
@@ -202,7 +204,7 @@ async def test_get_fuel_prices_within_radius(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_reference_data(session, mock_token):
+async def test_get_reference_data(session, mock_token) -> None:
     """Test fetching reference data."""
     url = f"{BASE_URL}{REFERENCE_ENDPOINT}"
     with open(LOVS_FILE) as f:
@@ -229,7 +231,7 @@ async def test_get_reference_data(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_server_error(session, mock_token):
+async def test_get_fuel_prices_server_error(session, mock_token) -> None:
     """Test 500 server error for all fuel prices."""
     url = f"{BASE_URL}{PRICES_ENDPOINT}"
     mock_token.get(url, status=500, body="Internal Server Error")
@@ -242,7 +244,7 @@ async def test_get_fuel_prices_server_error(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_for_station_client_error(session, mock_token):
+async def test_get_fuel_prices_for_station_client_error(session, mock_token) -> None:
     """Test 400 client error for a single station."""
     station_code = 21199
     url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
@@ -267,7 +269,7 @@ async def test_get_fuel_prices_for_station_client_error(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_prices_within_radius_server_error(session, mock_token):
+async def test_get_fuel_prices_within_radius_server_error(session, mock_token) -> None:
     """Test 500 server error for nearby fuel prices."""
     url = f"{BASE_URL}{NEARBY_ENDPOINT}"
     mock_token.post(url, status=500, body="Internal Server Error")
@@ -282,7 +284,7 @@ async def test_get_fuel_prices_within_radius_server_error(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_reference_data_client_error(session, mock_token):
+async def test_get_reference_data_client_error(session, mock_token) -> None:
     """Test 400 client error for reference data."""
     url = f"{BASE_URL}{REFERENCE_ENDPOINT}"
     mock_token.get(
@@ -304,7 +306,7 @@ async def test_get_reference_data_client_error(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_reference_data_server_error(session, mock_token):
+async def test_get_reference_data_server_error(session, mock_token) -> None:
     """Test 500 server error for reference data."""
     url = f"{BASE_URL}{REFERENCE_ENDPOINT}"
     mock_token.get(url, status=500, body="Internal Server Error.")
@@ -317,7 +319,7 @@ async def test_get_reference_data_server_error(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_get_fuel_price_timeout(session, mock_token):
+async def test_get_fuel_price_timeout(session, mock_token) -> None:
 
     station_code = "21199"
     url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
@@ -332,7 +334,7 @@ async def test_get_fuel_price_timeout(session, mock_token):
 
 
 @pytest.mark.asyncio
-async def test_server_error_raises_connection_error(session, mock_token):
+async def test_server_error_raises_connection_error(session, mock_token) -> None:
     url = f"{BASE_URL}{PRICES_ENDPOINT}"
     mock_token.get(
         url,
@@ -345,12 +347,11 @@ async def test_server_error_raises_connection_error(session, mock_token):
         await client.get_fuel_prices()
 
 @pytest.mark.asyncio
-async def test_invalid_client_credentials_token_fetch(session):
+async def test_invalid_client_credentials_token_fetch(session) -> None:
     """
     Test that invalid client_id/client_secret causes NSWFuelApiClientAuthError
     raised during token fetch (HTTP 401 from token endpoint).
     """
-
     # Mock token URL to return 401 Unauthorized with JSON error message
     with aioresponses() as m:
         m.get(
@@ -385,7 +386,8 @@ from nsw_fuel.client import NSWFuelApiClient, NSWFuelApiClientError, AUTH_URL
 
 
 @pytest.mark.asyncio
-async def test_async_get_token_invalid_json(session):
+async def test_async_get_token_invalid_json(session) -> None:
+    """Test handling of invalid JSON response during token fetch."""
     client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
     client._token = None  # force token refresh
     url = re.compile(rf"^{re.escape(AUTH_URL)}")
@@ -408,7 +410,8 @@ async def test_async_get_token_invalid_json(session):
 @pytest.mark.asyncio
 async def test_get_fuel_prices_for_station_empty_response(
     session, mock_token, monkeypatch
-):
+) -> None:
+    """Test handling of empty or malformed response for single station prices."""
     client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
 
     # Patch _async_request to return empty dict (missing "prices" key)
@@ -422,7 +425,8 @@ async def test_get_fuel_prices_for_station_empty_response(
 @pytest.mark.asyncio
 async def test_get_fuel_prices_within_radius_missing_keys(
     session, mock_token, monkeypatch
-):
+) -> None:
+    """Test handling of missing keys in response for fuel prices within radius."""
     client = NSWFuelApiClient(session=session, client_id="key", client_secret="secret")
 
     # Make _async_request return "{}" so both keys "stations" and "prices" are missing
