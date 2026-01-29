@@ -17,7 +17,6 @@ from aiohttp import (
     ClientTimeout,
     ContentTypeError,
 )
-from voluptuous import Msg
 
 from .const import (
     AUTH_URL,
