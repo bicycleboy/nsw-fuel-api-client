@@ -1,31 +1,29 @@
-#!/usr/bin/env python3
 """Script to explore NSW Fuel Check API."""
 
 import asyncio
-from encodings.punycode import T
-import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from encodings.punycode import T
 
 from aiohttp import ClientSession
 from nsw_fuel.client import (
     NSWFuelApiClient,
     StationPrice,
 )
-from sqlalchemy import false
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
 
 def load_secrets() -> tuple[str, str]:
+    """Get Fuel Check API key and secret."""
     key = os.getenv("NSWFUELCHECKAPI_KEY", "")
     secret = os.getenv("NSWFUELCHECKAPI_SECRET", "")
 
     if not key or not secret:
         msg = f"KEY={key} and or SECRET={secret} not set"
-        raise FileNotFoundError(msg)
+        raise KeyError(msg)
     return key, secret
 
 
