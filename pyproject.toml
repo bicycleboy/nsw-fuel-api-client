@@ -22,7 +22,7 @@
     ]
 
     [project.urls]
-    Homepage = "https://github.com/nickw444/nsw-fuel-api-client"
+    Homepage = "https://github.com/bicycleboy/nsw-fuel-api-client"
 
     [project.optional-dependencies]
     test = [
