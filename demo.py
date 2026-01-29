@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Demo script for nsw-fuel-api-client that loads credentials from a file."""
+"""Script to explore NSW Fuel Check API."""
 
 import asyncio
+from encodings.punycode import T
 import json
 import logging
 import os
@@ -18,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
 
-def load_secrets() -> Tuple[str, str]:
+def load_secrets() -> tuple[str, str]:
     key = os.getenv("NSWFUELCHECKAPI_KEY", "")
     secret = os.getenv("NSWFUELCHECKAPI_SECRET", "")
 
