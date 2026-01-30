@@ -8,7 +8,7 @@ API Client for New South Wales (Australia) Government Fuel Check Service providi
 
 ## Why
 
-Allows an application, such as home assistant, to integrate data from the Fuel Check API.
+Allows an application, such as home assistant, to integrate data from the [Fuel Check API](https://api.nsw.gov.au/Product/Index/22).
 
 ## What
 
@@ -22,7 +22,6 @@ File | Purpose | Documentation
 `LICENSE` | The license file for the project. | [Documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository)
 `pyproject.toml` | Python setup and configuration for this integration. | [Documentation](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/)
 `README.md` | The file you are reading now. | [Documentation](https://help.github.com/en/github/writing-on-github/basic-writing-and-formatting-syntax)
-)
 
 
 
