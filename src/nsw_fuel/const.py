@@ -1,7 +1,5 @@
 """Constants for nsw-fuel-api-client."""
 
-from logging import Logger, getLogger
-
 AUTH_URL = "https://api.onegov.nsw.gov.au/oauth/client_credential/accesstoken?grant_type=client_credentials"
 BASE_URL = "https://api.onegov.nsw.gov.au"
 DEFAULT_STATE = "NSW"
