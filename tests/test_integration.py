@@ -1,4 +1,4 @@
-# tests/test_integration.py
+""" Integration tests for the NSWFuelApiClient using the real API."""
 
 import os
 from datetime import datetime

@@ -1,3 +1,4 @@
+"""Fixtures for NSW Fuel Check API Client tests."""
 import re
 import pytest
 import aiohttp
@@ -16,6 +17,7 @@ async def session():
 def mock_token():
     """
     Fixture to mock the FuelCheck API token endpoint.
+
     Returns an aioresponses context manager.
     """
     with aioresponses() as m:
