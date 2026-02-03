@@ -294,10 +294,3 @@ class GetFuelPricesResponse:
             stations=stations,
             prices=prices
         )
-
-
-class PriceTrends(NamedTuple):
-    """PriceTrends."""
-
-    variances: list[Variance]
-    average_prices: list[AveragePrice]
