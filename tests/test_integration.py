@@ -8,9 +8,8 @@ from dotenv import load_dotenv
 from nsw_fuel.client import (
     NSWFuelApiClient,
     NSWFuelApiClientAuthError,
-    NSWFuelApiClientConnectionError,
+    NSWFuelApiClientError
 )
-from nsw_fuel.const import BASE_URL, PRICE_ENDPOINT, PRICES_ENDPOINT
 
 
 @pytest.fixture
@@ -125,3 +124,11 @@ async def test_authentication_failure(session):
     with pytest.raises(NSWFuelApiClientAuthError):
         await client._async_get_token()
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_connection_error(client):
+    """Integration test for connection error."""
+
+    # Fetch prices for that station
+    with pytest.raises(NSWFuelApiClientError):
+        await client.get_fuel_prices_for_station(-1, state="NSW")
