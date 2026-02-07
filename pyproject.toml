@@ -24,7 +24,7 @@
     ]
 
     [project.urls]
-    Homepage = "https://github.com/bicycleboy/nsw-fuel-api-client"
+    Homepage = "https://github.com/bicycleboy/nsw-fuel-api-client-v2"
 
     [project.optional-dependencies]
     test = [
@@ -33,12 +33,13 @@
         "pytest-cov",
         "requests-mock",
         "aioresponses",
-        "dotenv"
+        "dotenv",
+        "ruff",
+        "twine",
     ]
 
-
     [tool.setuptools.packages.find]
-    where = ["src"]
+    where = ["."]
     include = ["nsw_fuel"]
 
     [tool.pytest.ini_options]

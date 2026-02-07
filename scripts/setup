@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+source .venv/bin/activate
+pip install --upgrade pip
+python3 -m pip install '.[test]'
+echo 'source .venv/bin/activate' > ~/.bashrc
