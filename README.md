@@ -8,7 +8,7 @@ API Client for New South Wales (Australia) Government Fuel Check Service providi
 
 ## Why
 
-Allows an application, such as home assistant, to integrate data from the [NSW Fuel Check API](https://api.nsw.gov.au/Product/Index/22).
+Allows an application, such as [Home Assistant](https://www.home-assistant.io/), to integrate data from the [NSW Fuel Check API](https://api.nsw.gov.au/Product/Index/22). See also Home Assistant Integration https://github.com/bicycleboy/nsw_fuel_station.
 
 ## What
 
@@ -28,4 +28,4 @@ File | Purpose | Documentation
 
 ## Blame
 
-This update is based on [nickw444/nsw-fuel-api-client ](https://github.com/nickw444/nsw-fuel-api-client) particularly dto.py (thanks Nick), it is not backwardly compatible and has not been reviewed by the origional author.
+This update is based on [nickw444/nsw-fuel-api-client ](https://github.com/nickw444/nsw-fuel-api-client) particularly dto.py (thanks Nick), it is not backwardly compatible and has not been reviewed by the original author.
