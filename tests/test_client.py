@@ -21,7 +21,6 @@ from nsw_fuel.const import (
     PRICES_ENDPOINT,
     REFERENCE_ENDPOINT,
 )
-from nsw_fuel.dto import Station
 
 # Paths to fixture files
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -246,7 +245,7 @@ async def test_get_fuel_prices_server_error(session, mock_token) -> None:
 @pytest.mark.asyncio
 async def test_get_fuel_prices_for_station_client_error(session, mock_token) -> None:
     """Test 400 client error for a single station."""
-    station_code = 21199
+    station_code = "21199"
     url = f"{BASE_URL}{PRICE_ENDPOINT.format(station_code=station_code)}"
     mock_token.get(
         url,
@@ -378,11 +377,6 @@ async def test_invalid_client_credentials_token_fetch(session) -> None:
             await client.get_fuel_prices()
 
         assert "Invalid NSW Fuel Check API credentials" in str(exc.value)
-
-
-from aioresponses import aioresponses
-import pytest
-from nsw_fuel.client import NSWFuelApiClient, NSWFuelApiClientError, AUTH_URL
 
 
 @pytest.mark.asyncio

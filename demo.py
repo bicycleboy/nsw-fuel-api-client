@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 from datetime import UTC, datetime, timedelta
-from encodings.punycode import T
 
 from aiohttp import ClientSession
 from nsw_fuel.client import (
@@ -22,7 +21,9 @@ def load_secrets() -> tuple[str, str]:
     secret = os.getenv("NSWFUELCHECKAPI_SECRET", "")
 
     if not key or not secret:
-        msg = f"KEY={key} and or SECRET={secret} not set"
+        msg = (
+            f"NSWFUELCHECKAPI_KEY={key} and or NSWFUELCHECKAPI_SECRET={secret} not set"
+        )
         raise KeyError(msg)
     return key, secret
 
@@ -35,7 +36,6 @@ async def main() -> None:
         _LOGGER.exception("Error loading secrets: %s", exc)
         return
 
-    # Create an aiohttp session
     async with ClientSession() as session:
         client = NSWFuelApiClient(
             session=session, client_id=api_key, client_secret=api_secret
@@ -69,23 +69,23 @@ async def main() -> None:
             )
 
         # Parameters
-        # Durras
-        longitude = 150.29
-        latitude = -35.66
+        # Sydney
+        longitude = 151.2
+        latitude = -33.86
         # Hobart
-        #longitude = 147.33
-        #latitude = -42.88
+        # longitude = 147.33
+        # latitude = -42.88
         radius = 25
         fuel_type = "E10"
 
         try:
-            prices: list[StationPrice] = await client.get_fuel_prices_within_radius(
+            sp: list[StationPrice] = await client.get_fuel_prices_within_radius(
                 latitude=latitude,
                 longitude=longitude,
                 radius=radius,
                 fuel_type=fuel_type,
             )
-            for item in prices:
+            for item in sp:
                 station = item.station
                 price = item.price
 
@@ -97,10 +97,8 @@ async def main() -> None:
         except Exception as e:
             _LOGGER.error("Error fetching prices within radius: %s", e)
 
-        # Fetch reference data
         _LOGGER.info("Fetching reference data modified since yesterday...")
 
-        # Calculate "modified since yesterday"
         modified_since_dt = datetime.now(UTC) - timedelta(days=1)
 
         if False:
@@ -115,7 +113,7 @@ async def main() -> None:
                 if hasattr(response, "__dict__"):
                     data_to_print = response.__dict__
                 else:
-                    data_to_print = response  # fallback if already serializable
+                    data_to_print = response  # fallback if already serializable  # noqa: F841
 
                 # Pretty-print JSON
                 #           print(json.dumps(data_to_print, indent=4, default=str))
