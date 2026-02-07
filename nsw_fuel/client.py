@@ -496,8 +496,7 @@ class NSWFuelApiClient:
 
         # Validate structure
         if not response or "stations" not in response or "prices" not in response:
-            msg = "Malformed or empty response for location "
-            f"({latitude}, {longitude})"
+            msg = f"Malformed or empty response for location ({latitude}, {longitude})"
             _LOGGER.debug(msg)
             raise NSWFuelApiClientError(msg)
 
